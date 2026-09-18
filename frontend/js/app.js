@@ -40,6 +40,54 @@ function formatarData(iso) {
   return d.toLocaleDateString("pt-BR") + " " + d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 }
 
+// ---------------------------------------------------------------------------
+// SALVAMENTO AUTOMÁTICO
+//
+// Campos de texto (segmentos, ata, encaminhamentos) salvam sozinhos pouco
+// depois de parar de digitar, e imediatamente ao sair do campo - assim uma
+// edição nunca se perde por esquecer de clicar em "Salvar". O botão de
+// salvar continua existindo como confirmação explícita, mas deixa de ser
+// obrigatório.
+// ---------------------------------------------------------------------------
+
+const ATRASO_AUTOSAVE_MS = 900;
+const temporizadoresAutosave = new Map();
+
+function agendarAutosave(chave, executar, elementoStatus) {
+  if (elementoStatus) elementoStatus.textContent = "Alterações não salvas...";
+  if (temporizadoresAutosave.has(chave)) clearTimeout(temporizadoresAutosave.get(chave));
+  const timer = setTimeout(() => {
+    temporizadoresAutosave.delete(chave);
+    executarAutosave(executar, elementoStatus);
+  }, ATRASO_AUTOSAVE_MS);
+  temporizadoresAutosave.set(chave, timer);
+}
+
+function flushAutosave(chave, executar, elementoStatus) {
+  if (temporizadoresAutosave.has(chave)) {
+    clearTimeout(temporizadoresAutosave.get(chave));
+    temporizadoresAutosave.delete(chave);
+  }
+  return executarAutosave(executar, elementoStatus);
+}
+
+async function executarAutosave(executar, elementoStatus) {
+  if (elementoStatus) elementoStatus.textContent = "Salvando...";
+  try {
+    await executar();
+    if (elementoStatus) {
+      elementoStatus.textContent = "Salvo";
+      elementoStatus.classList.remove("status-erro");
+      setTimeout(() => { if (elementoStatus.textContent === "Salvo") elementoStatus.textContent = ""; }, 2000);
+    }
+  } catch (erro) {
+    if (elementoStatus) {
+      elementoStatus.textContent = `Não foi possível salvar: ${erro.message}`;
+      elementoStatus.classList.add("status-erro");
+    }
+  }
+}
+
 async function apiFetch(caminho, opcoes = {}) {
   const resposta = await fetch(caminho, opcoes);
   if (!resposta.ok) {
@@ -327,12 +375,19 @@ function renderizarParticipantes() {
     item.className = "item-participante";
     item.innerHTML = `
       <input type="text" class="input-nome-participante" value="${escaparHtml(p.nome)}" />
-      <button class="btn-icone" data-acao="salvar" title="Salvar nome">Salvar</button>
+      <span class="status-autosave" aria-live="polite"></span>
       <button class="btn-icone btn-icone-perigo" data-acao="excluir" title="Excluir participante">Excluir</button>
     `;
     const input = item.querySelector(".input-nome-participante");
-    item.querySelector('[data-acao="salvar"]').addEventListener("click", () => renomearParticipante(p.id, input.value));
-    input.addEventListener("keydown", (e) => { if (e.key === "Enter") renomearParticipante(p.id, input.value); });
+    const status = item.querySelector(".status-autosave");
+
+    input.addEventListener("input", () => {
+      p.nome = input.value; // mantém o estado local sempre atual, mesmo antes de salvar
+      agendarAutosave(`participante-${p.id}`, () => renomearParticipante(p.id, input.value), status);
+    });
+    input.addEventListener("blur", () => flushAutosave(`participante-${p.id}`, () => renomearParticipante(p.id, input.value), status));
+    input.addEventListener("keydown", (e) => { if (e.key === "Enter") input.blur(); });
+
     item.querySelector('[data-acao="excluir"]').addEventListener("click", () => excluirParticipante(p.id));
     lista.appendChild(item);
   });
@@ -355,20 +410,17 @@ document.getElementById("btn-adicionar-participante").addEventListener("click", 
 
 async function renomearParticipante(participanteId, novoNome) {
   const nome = novoNome.trim();
-  if (!nome) return;
-  try {
-    const atualizado = await apiFetch(`${API}/${reuniaoAtual.id}/participantes/${participanteId}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ nome }),
-    });
-    const p = participantesAtuais.find((x) => x.id === participanteId);
-    if (p) p.nome = atualizado.nome;
-    reuniaoAtual.segmentos.forEach((s) => { if (s.participante_id === participanteId) s.falante = atualizado.nome; });
-    renderizarSegmentos();
-  } catch (erro) {
-    alert(`Não foi possível renomear o participante: ${erro.message}`);
-  }
+  if (!nome) throw new Error("o nome não pode ficar vazio");
+
+  const atualizado = await apiFetch(`${API}/${reuniaoAtual.id}/participantes/${participanteId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ nome }),
+  });
+  const p = participantesAtuais.find((x) => x.id === participanteId);
+  if (p) p.nome = atualizado.nome;
+  reuniaoAtual.segmentos.forEach((s) => { if (s.participante_id === participanteId) s.falante = atualizado.nome; });
+  renderizarSegmentos();
 }
 
 async function excluirParticipante(participanteId) {
@@ -416,11 +468,14 @@ function renderizarSegmentos() {
         ${seg.baixa_confianca ? '<span class="segmento-flag">⚠ baixa confiança — revisar</span>' : ""}
       </div>
       <textarea>${escaparHtml(seg.texto)}</textarea>
-      <div class="segmento-acoes">
-        <button data-acao="salvar">Salvar texto</button>
-        <button data-acao="dividir">Dividir no cursor</button>
-        <button data-acao="mesclar-proximo">Unir com próximo</button>
-        <button data-acao="excluir" class="acao-perigo">Excluir</button>
+      <div class="segmento-rodape">
+        <span class="segmento-status" aria-live="polite"></span>
+        <div class="segmento-acoes">
+          <button data-acao="salvar">Salvar agora</button>
+          <button data-acao="dividir">Dividir no cursor</button>
+          <button data-acao="mesclar-proximo">Unir com próximo</button>
+          <button data-acao="excluir" class="acao-perigo">Excluir</button>
+        </div>
       </div>
     `;
     lista.appendChild(div);
@@ -430,8 +485,25 @@ function renderizarSegmentos() {
     const id = div.dataset.id;
     const textarea = div.querySelector("textarea");
     const selectParticipante = div.querySelector(".segmento-participante");
+    const status = div.querySelector(".segmento-status");
 
-    div.querySelector('[data-acao="salvar"]').addEventListener("click", () => salvarSegmento(id, textarea.value));
+    const salvarTextoNoServidor = () => apiFetch(`${API}/${reuniaoAtual.id}/segmentos/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ texto: textarea.value }),
+    });
+
+    textarea.addEventListener("input", () => {
+      // Atualiza o estado local imediatamente: mesmo que a tela seja
+      // redesenhada antes do salvamento no servidor terminar, o texto
+      // digitado nunca volta a ser o antigo.
+      const seg = reuniaoAtual.segmentos.find((s) => s.id === id);
+      if (seg) seg.texto = textarea.value;
+      agendarAutosave(`segmento-${id}`, salvarTextoNoServidor, status);
+    });
+    textarea.addEventListener("blur", () => flushAutosave(`segmento-${id}`, salvarTextoNoServidor, status));
+
+    div.querySelector('[data-acao="salvar"]').addEventListener("click", () => flushAutosave(`segmento-${id}`, salvarTextoNoServidor, status));
     div.querySelector('[data-acao="excluir"]').addEventListener("click", () => excluirSegmento(id));
     div.querySelector('[data-acao="mesclar-proximo"]').addEventListener("click", () => mesclarComProximo(id));
     div.querySelector('[data-acao="dividir"]').addEventListener("click", () => {
@@ -454,20 +526,6 @@ async function atribuirParticipanteSegmento(id, participanteId) {
   } catch (erro) {
     alert(`Não foi possível atribuir o participante: ${erro.message}`);
     renderizarSegmentos();
-  }
-}
-
-async function salvarSegmento(id, texto) {
-  try {
-    await apiFetch(`${API}/${reuniaoAtual.id}/segmentos/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ texto }),
-    });
-    const seg = reuniaoAtual.segmentos.find((s) => s.id === id);
-    if (seg) seg.texto = texto;
-  } catch (erro) {
-    alert(`Não foi possível salvar o trecho: ${erro.message}`);
   }
 }
 
@@ -585,27 +643,34 @@ function exibirAtaGerada() {
   renderizarEncaminhamentos();
 }
 
-document.getElementById("btn-salvar-ata").addEventListener("click", async () => {
-  const botao = document.getElementById("btn-salvar-ata");
-  botao.disabled = true;
-  try {
-    ataAtual = await apiFetch(`${API}/${reuniaoAtual.id}/ata`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        objetivo: document.getElementById("ata-objetivo").value,
-        assuntos_tratados: document.getElementById("ata-assuntos").value,
-        decisoes: document.getElementById("ata-decisoes").value,
-        pendencias: document.getElementById("ata-pendencias").value,
-      }),
-    });
-    botao.textContent = "Salvo!";
-    setTimeout(() => { botao.textContent = "Salvar seções"; }, 1500);
-  } catch (erro) {
-    alert(`Não foi possível salvar a ata: ${erro.message}`);
-  } finally {
-    botao.disabled = false;
-  }
+const CAMPOS_ATA = ["ata-objetivo", "ata-assuntos", "ata-decisoes", "ata-pendencias"];
+
+function salvarSecoesAtaNoServidor() {
+  return apiFetch(`${API}/${reuniaoAtual.id}/ata`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      objetivo: document.getElementById("ata-objetivo").value,
+      assuntos_tratados: document.getElementById("ata-assuntos").value,
+      decisoes: document.getElementById("ata-decisoes").value,
+      pendencias: document.getElementById("ata-pendencias").value,
+    }),
+  }).then((atualizado) => { ataAtual = { ...ataAtual, ...atualizado }; });
+}
+
+const statusAta = document.getElementById("ata-status");
+CAMPOS_ATA.forEach((idCampo) => {
+  const campo = document.getElementById(idCampo);
+  campo.addEventListener("input", () => {
+    agendarAutosave("ata-secoes", salvarSecoesAtaNoServidor, statusAta);
+  });
+  campo.addEventListener("blur", () => {
+    flushAutosave("ata-secoes", salvarSecoesAtaNoServidor, statusAta);
+  });
+});
+
+document.getElementById("btn-salvar-ata").addEventListener("click", () => {
+  flushAutosave("ata-secoes", salvarSecoesAtaNoServidor, statusAta);
 });
 
 const STATUS_ENCAMINHAMENTO = ["Pendente", "Em andamento", "Concluído"];
@@ -627,11 +692,19 @@ function renderizarEncaminhamentos() {
       <td><input type="text" class="enc-prazo" value="${escaparHtml(enc.prazo || "")}" placeholder="Não identificado" /></td>
       <td><select class="enc-status">${opcoesStatus}</select></td>
       <td>
-        <button data-acao="salvar-enc">Salvar</button>
+        <span class="enc-status-autosave status-autosave" aria-live="polite"></span>
         <button data-acao="excluir-enc">Excluir</button>
       </td>
     `;
-    tr.querySelector('[data-acao="salvar-enc"]').addEventListener("click", () => salvarEncaminhamento(enc.id, tr));
+
+    const status = tr.querySelector(".enc-status-autosave");
+    const salvarNoServidor = () => salvarEncaminhamento(enc.id, tr);
+    tr.querySelectorAll(".enc-descricao, .enc-responsavel, .enc-prazo").forEach((campo) => {
+      campo.addEventListener("input", () => agendarAutosave(`enc-${enc.id}`, salvarNoServidor, status));
+      campo.addEventListener("blur", () => flushAutosave(`enc-${enc.id}`, salvarNoServidor, status));
+    });
+    tr.querySelector(".enc-status").addEventListener("change", () => flushAutosave(`enc-${enc.id}`, salvarNoServidor, status));
+
     tr.querySelector('[data-acao="excluir-enc"]').addEventListener("click", () => excluirEncaminhamento(enc.id));
     corpo.appendChild(tr);
   });
@@ -644,17 +717,13 @@ async function salvarEncaminhamento(id, tr) {
     prazo: tr.querySelector(".enc-prazo").value,
     status: tr.querySelector(".enc-status").value,
   };
-  try {
-    const atualizado = await apiFetch(`${API}/${reuniaoAtual.id}/encaminhamentos/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(dados),
-    });
-    const idx = ataAtual.encaminhamentos.findIndex((e) => e.id === id);
-    if (idx !== -1) ataAtual.encaminhamentos[idx] = atualizado;
-  } catch (erro) {
-    alert(`Não foi possível salvar o encaminhamento: ${erro.message}`);
-  }
+  const atualizado = await apiFetch(`${API}/${reuniaoAtual.id}/encaminhamentos/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(dados),
+  });
+  const idx = ataAtual.encaminhamentos.findIndex((e) => e.id === id);
+  if (idx !== -1) ataAtual.encaminhamentos[idx] = atualizado;
 }
 
 async function excluirEncaminhamento(id) {
