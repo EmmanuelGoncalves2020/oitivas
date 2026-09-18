@@ -10,6 +10,7 @@ const views = {
   processando: document.getElementById("view-processando"),
   revisao: document.getElementById("view-revisao"),
   dicionario: document.getElementById("view-dicionario"),
+  ata: document.getElementById("view-ata"),
 };
 
 let capacidades = { diarizacao_disponivel: false };
@@ -454,6 +455,173 @@ document.getElementById("btn-exportar-docx").addEventListener("click", () => {
 });
 document.getElementById("btn-exportar-txt").addEventListener("click", () => {
   window.location.href = `${API}/${reuniaoAtual.id}/exportar/txt`;
+});
+
+// ---------------------------------------------------------------------------
+// ATA / RELATÓRIO E ENCAMINHAMENTOS
+// ---------------------------------------------------------------------------
+
+let ataAtual = null;
+
+document.getElementById("btn-abrir-ata").addEventListener("click", () => abrirAta(reuniaoAtual.id));
+document.getElementById("btn-voltar-revisao").addEventListener("click", () => mostrarView("revisao"));
+
+async function abrirAta(reuniaoId) {
+  mostrarView("ata");
+  document.getElementById("ata-titulo").textContent = `Ata / Relatório — ${reuniaoAtual.titulo}`;
+  document.getElementById("ata-meta").textContent =
+    `${formatarData(reuniaoAtual.criado_em)} · Duração: ${formatarTempo(reuniaoAtual.duracao_segundos)}`;
+
+  const btnExportar = document.getElementById("btn-exportar-ata-docx");
+  try {
+    ataAtual = await apiFetch(`${API}/${reuniaoId}/ata`);
+    btnExportar.disabled = false;
+    exibirAtaGerada();
+  } catch (_) {
+    ataAtual = null;
+    btnExportar.disabled = true;
+    document.getElementById("ata-vazia").classList.remove("hidden");
+    document.getElementById("ata-gerar-container").classList.remove("hidden");
+    document.getElementById("ata-conteudo").classList.add("hidden");
+  }
+}
+
+document.getElementById("btn-gerar-ata").addEventListener("click", async () => {
+  const botao = document.getElementById("btn-gerar-ata");
+  botao.disabled = true;
+  botao.textContent = "Gerando...";
+  try {
+    ataAtual = await apiFetch(`${API}/${reuniaoAtual.id}/ata/gerar`, { method: "POST" });
+    document.getElementById("btn-exportar-ata-docx").disabled = false;
+    exibirAtaGerada();
+  } catch (erro) {
+    alert(`Não foi possível gerar a ata: ${erro.message}`);
+  } finally {
+    botao.disabled = false;
+    botao.textContent = "Gerar ata a partir da transcrição";
+  }
+});
+
+function exibirAtaGerada() {
+  document.getElementById("ata-vazia").classList.add("hidden");
+  document.getElementById("ata-gerar-container").classList.add("hidden");
+  document.getElementById("ata-conteudo").classList.remove("hidden");
+
+  document.getElementById("ata-aviso-ia").classList.toggle("hidden", !ataAtual.gerada_por_ia);
+  document.getElementById("ata-objetivo").value = ataAtual.objetivo || "";
+  document.getElementById("ata-assuntos").value = ataAtual.assuntos_tratados || "";
+  document.getElementById("ata-decisoes").value = ataAtual.decisoes || "";
+  document.getElementById("ata-pendencias").value = ataAtual.pendencias || "";
+
+  renderizarEncaminhamentos();
+}
+
+document.getElementById("btn-salvar-ata").addEventListener("click", async () => {
+  const botao = document.getElementById("btn-salvar-ata");
+  botao.disabled = true;
+  try {
+    ataAtual = await apiFetch(`${API}/${reuniaoAtual.id}/ata`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        objetivo: document.getElementById("ata-objetivo").value,
+        assuntos_tratados: document.getElementById("ata-assuntos").value,
+        decisoes: document.getElementById("ata-decisoes").value,
+        pendencias: document.getElementById("ata-pendencias").value,
+      }),
+    });
+    botao.textContent = "Salvo!";
+    setTimeout(() => { botao.textContent = "Salvar seções"; }, 1500);
+  } catch (erro) {
+    alert(`Não foi possível salvar a ata: ${erro.message}`);
+  } finally {
+    botao.disabled = false;
+  }
+});
+
+const STATUS_ENCAMINHAMENTO = ["Pendente", "Em andamento", "Concluído"];
+
+function renderizarEncaminhamentos() {
+  const corpo = document.getElementById("tabela-encaminhamentos-body");
+  const vazio = document.getElementById("encaminhamentos-vazio");
+  corpo.innerHTML = "";
+  vazio.classList.toggle("hidden", ataAtual.encaminhamentos.length > 0);
+
+  ataAtual.encaminhamentos.forEach((enc) => {
+    const tr = document.createElement("tr");
+    const opcoesStatus = STATUS_ENCAMINHAMENTO
+      .map((s) => `<option value="${s}" ${s === enc.status ? "selected" : ""}>${s}</option>`)
+      .join("");
+    tr.innerHTML = `
+      <td><textarea class="enc-descricao" rows="2">${escaparHtml(enc.descricao)}</textarea></td>
+      <td><input type="text" class="enc-responsavel" value="${escaparHtml(enc.responsavel || "")}" placeholder="Não identificado" /></td>
+      <td><input type="text" class="enc-prazo" value="${escaparHtml(enc.prazo || "")}" placeholder="Não identificado" /></td>
+      <td><select class="enc-status">${opcoesStatus}</select></td>
+      <td>
+        <button data-acao="salvar-enc">Salvar</button>
+        <button data-acao="excluir-enc">Excluir</button>
+      </td>
+    `;
+    tr.querySelector('[data-acao="salvar-enc"]').addEventListener("click", () => salvarEncaminhamento(enc.id, tr));
+    tr.querySelector('[data-acao="excluir-enc"]').addEventListener("click", () => excluirEncaminhamento(enc.id));
+    corpo.appendChild(tr);
+  });
+}
+
+async function salvarEncaminhamento(id, tr) {
+  const dados = {
+    descricao: tr.querySelector(".enc-descricao").value,
+    responsavel: tr.querySelector(".enc-responsavel").value,
+    prazo: tr.querySelector(".enc-prazo").value,
+    status: tr.querySelector(".enc-status").value,
+  };
+  try {
+    const atualizado = await apiFetch(`${API}/${reuniaoAtual.id}/encaminhamentos/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(dados),
+    });
+    const idx = ataAtual.encaminhamentos.findIndex((e) => e.id === id);
+    if (idx !== -1) ataAtual.encaminhamentos[idx] = atualizado;
+  } catch (erro) {
+    alert(`Não foi possível salvar o encaminhamento: ${erro.message}`);
+  }
+}
+
+async function excluirEncaminhamento(id) {
+  if (!confirm("Excluir este encaminhamento?")) return;
+  try {
+    await apiFetch(`${API}/${reuniaoAtual.id}/encaminhamentos/${id}`, { method: "DELETE" });
+    ataAtual.encaminhamentos = ataAtual.encaminhamentos.filter((e) => e.id !== id);
+    renderizarEncaminhamentos();
+  } catch (erro) {
+    alert(`Não foi possível excluir o encaminhamento: ${erro.message}`);
+  }
+}
+
+document.getElementById("btn-adicionar-encaminhamento").addEventListener("click", async () => {
+  const descricao = document.getElementById("novo-enc-descricao").value.trim();
+  if (!descricao) return;
+  const responsavel = document.getElementById("novo-enc-responsavel").value.trim();
+  const prazo = document.getElementById("novo-enc-prazo").value.trim();
+  try {
+    const novo = await apiFetch(`${API}/${reuniaoAtual.id}/encaminhamentos`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ descricao, responsavel: responsavel || null, prazo: prazo || null }),
+    });
+    ataAtual.encaminhamentos.push(novo);
+    renderizarEncaminhamentos();
+    document.getElementById("novo-enc-descricao").value = "";
+    document.getElementById("novo-enc-responsavel").value = "";
+    document.getElementById("novo-enc-prazo").value = "";
+  } catch (erro) {
+    alert(`Não foi possível adicionar o encaminhamento: ${erro.message}`);
+  }
+});
+
+document.getElementById("btn-exportar-ata-docx").addEventListener("click", () => {
+  window.location.href = `${API}/${reuniaoAtual.id}/exportar/ata-docx`;
 });
 
 // ---------------------------------------------------------------------------

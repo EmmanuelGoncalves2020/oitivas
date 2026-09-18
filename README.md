@@ -7,7 +7,7 @@ Transforma gravações de áudio/vídeo em transcrições organizadas, com
 processamento **local/offline** (sem envio de áudio ou texto a serviços
 externos de IA), revisão humana e exportação em documento profissional.
 
-## Status: MVP — Fases 1 e 2 do roadmap
+## Status: MVP — Fases 1, 2 e 3 do roadmap
 
 Implementado nesta versão:
 - Upload de áudio/vídeo (MP3, WAV, M4A, MP4, WEBM, OGG, AAC, MOV, MKV);
@@ -25,12 +25,19 @@ Implementado nesta versão:
 - exportação em DOCX e TXT;
 - opção de excluir o áudio original após o processamento;
 - registro de eventos (upload, processamento, exportação, exclusão,
-  diarização indisponível).
+  diarização indisponível);
+- **Ata/Relatório**, documento separado da transcrição, com objetivo,
+  assuntos tratados, decisões e pendências (editáveis pelo usuário);
+- **Encaminhamentos** extraídos automaticamente por padrões de texto
+  (responsável, prazo e status), sempre editáveis, nunca inventados —
+  campos não identificados aparecem como "Não identificado";
+- **rascunho de ata por IA local (opcional)** via Ollama — desabilitado
+  por padrão, sempre marcado como rascunho sujeito a revisão;
+- exportação da ata em DOCX.
 
-**Ainda não implementado** (fases seguintes do roadmap, ver
-`docs/ARQUITETURA.md`): geração de ata/relatório e extração de
-encaminhamentos (Fase 3), exportação em PDF, autenticação e controle de
-acesso (Fase 4).
+**Ainda não implementado** (fase seguinte do roadmap, ver
+`docs/ARQUITETURA.md`): autenticação e controle de acesso (Fase 4);
+exportação em PDF (transcrição e ata).
 
 ## Documentação
 

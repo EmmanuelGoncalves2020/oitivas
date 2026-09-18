@@ -131,7 +131,7 @@
         <button id="btn-exportar-docx" class="btn btn-secundario">Gerar DOCX</button>
         <button id="btn-exportar-txt" class="btn btn-secundario">Gerar TXT</button>
         <button id="btn-exportar-pdf" class="btn btn-desabilitado" disabled title="Disponível em versão futura">Gerar PDF (em breve)</button>
-        <button id="btn-exportar-ata" class="btn btn-desabilitado" disabled title="Disponível na Fase 3 do roadmap">Gerar Ata (em breve)</button>
+        <button id="btn-abrir-ata" class="btn btn-primary">Ata / Relatório</button>
       </div>
     </div>
 
@@ -143,6 +143,88 @@
     </div>
 
     <div id="lista-segmentos" class="lista-segmentos"></div>
+  </section>
+
+  <!-- ATA / RELATÓRIO -->
+  <section id="view-ata" class="view hidden">
+    <div class="revisao-header">
+      <div>
+        <h2 id="ata-titulo">Ata / Relatório</h2>
+        <p id="ata-meta" class="texto-secundario"></p>
+      </div>
+      <div class="acoes">
+        <button id="btn-voltar-revisao" class="btn btn-secundario">Voltar à transcrição</button>
+        <button id="btn-exportar-ata-docx" class="btn btn-primary">Exportar Ata (DOCX)</button>
+      </div>
+    </div>
+
+    <p id="ata-vazia" class="texto-vazio hidden">
+      A ata ainda não foi gerada para esta reunião.
+    </p>
+    <div id="ata-gerar-container" class="hidden">
+      <button id="btn-gerar-ata" class="btn btn-primary">Gerar ata a partir da transcrição</button>
+    </div>
+
+    <div id="ata-conteudo" class="hidden">
+      <p id="ata-aviso-ia" class="aviso-diarizacao hidden">
+        Trechos abaixo contêm rascunho gerado por um modelo de linguagem local (Ollama).
+        Revise cuidadosamente a fidelidade ao conteúdo da reunião antes de considerar o
+        texto oficial — a ferramenta pode não ter identificado tudo corretamente.
+      </p>
+
+      <div class="panel">
+        <label class="campo-ata">
+          Objetivo
+          <textarea id="ata-objetivo" placeholder="Objetivo da reunião..."></textarea>
+        </label>
+        <label class="campo-ata">
+          Assuntos tratados
+          <textarea id="ata-assuntos" placeholder="Preencha os temas discutidos na reunião..."></textarea>
+        </label>
+        <label class="campo-ata">
+          Decisões
+          <textarea id="ata-decisoes" placeholder="Preencha as decisões/deliberações tomadas..."></textarea>
+        </label>
+        <label class="campo-ata">
+          Pendências
+          <textarea id="ata-pendencias" placeholder="Preencha os assuntos em aberto..."></textarea>
+        </label>
+        <div class="acoes">
+          <button id="btn-salvar-ata" class="btn btn-primary">Salvar seções</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <h3>Encaminhamentos</h3>
+        </div>
+        <p class="texto-secundario">
+          Extraídos automaticamente por busca de padrões de texto na transcrição — não é uma
+          análise semântica. Revise, corrija e complemente os campos "Não identificado" quando
+          souber a informação. Adicione manualmente o que não foi capturado.
+        </p>
+        <table class="tabela">
+          <thead>
+            <tr>
+              <th>Encaminhamento</th>
+              <th>Responsável</th>
+              <th>Prazo</th>
+              <th>Status</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody id="tabela-encaminhamentos-body"></tbody>
+        </table>
+        <p id="encaminhamentos-vazio" class="texto-vazio hidden">Nenhum encaminhamento identificado ou cadastrado.</p>
+
+        <div class="form-encaminhamento">
+          <input type="text" id="novo-enc-descricao" placeholder="Descrição do encaminhamento" />
+          <input type="text" id="novo-enc-responsavel" placeholder="Responsável (opcional)" />
+          <input type="text" id="novo-enc-prazo" placeholder="Prazo (opcional)" />
+          <button id="btn-adicionar-encaminhamento" class="btn btn-secundario">+ Adicionar</button>
+        </div>
+      </div>
+    </div>
   </section>
 
   <!-- DICIONÁRIO INSTITUCIONAL -->

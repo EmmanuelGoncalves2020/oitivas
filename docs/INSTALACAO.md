@@ -97,6 +97,9 @@ No terminal onde o `uvicorn` está rodando, pressione `Ctrl + C`.
 | `TRANSCRITOR_WHISPER_LANGUAGE` | `pt` | Idioma da transcrição |
 | `TRANSCRITOR_DIARIZACAO_HABILITADA` | `false` | Habilita a identificação de participantes |
 | `TRANSCRITOR_HF_TOKEN` | (vazio) | Token do Hugging Face (necessário para diarização) |
+| `TRANSCRITOR_OLLAMA_HABILITADO` | `false` | Habilita rascunho de ata por IA local (Ollama) |
+| `TRANSCRITOR_OLLAMA_URL` | `http://localhost:11434` | Endereço do servidor Ollama |
+| `TRANSCRITOR_OLLAMA_MODEL` | `llama3.1` | Modelo Ollama usado para o rascunho |
 
 ## 9. Habilitar diarização (identificação de participantes) — opcional
 
@@ -125,6 +128,39 @@ pesos dos modelos de diarização, feito pela biblioteca `pyannote.audio` a
 partir do Hugging Face Hub na primeira execução — nunca o áudio das
 reuniões. Sem essa configuração, a ferramenta funciona normalmente, apenas
 sem identificação de participantes.
+
+## 10. Habilitar rascunho de Ata por IA local (Ollama) — opcional
+
+Por padrão, as seções "Assuntos tratados", "Decisões" e "Pendências" da
+Ata/Relatório ficam em branco para preenchimento manual. Para que a
+ferramenta gere um rascunho inicial dessas seções usando um modelo de
+linguagem rodando localmente:
+
+1. Instale o Ollama (https://ollama.com) na própria máquina ou em um
+   servidor da rede interna da CTCE/SEFAZ-RJ.
+2. Baixe um modelo (uma única vez, localmente):
+   ```powershell
+   ollama pull llama3.1
+   ```
+3. Deixe o Ollama em execução (ele sobe automaticamente um servidor local
+   em `http://localhost:11434`).
+4. Configure as variáveis de ambiente antes de iniciar o Transcritor CTCE:
+   ```powershell
+   $env:TRANSCRITOR_OLLAMA_HABILITADO = "true"
+   $env:TRANSCRITOR_OLLAMA_MODEL = "llama3.1"
+   uvicorn app.main:app --host 127.0.0.1 --port 8000
+   ```
+
+**O que isso envia para fora da máquina**: nada além do download único do
+modelo pelo próprio Ollama (passo 2), feito uma vez, fora do Transcritor
+CTCE. Durante o uso, a aplicação apenas faz uma chamada HTTP ao servidor
+Ollama já em execução localmente (ou na rede interna, se configurado) -
+nenhum dado é enviado à internet. Sem essa configuração, a geração da ata
+continua funcionando normalmente (encaminhamentos extraídos
+automaticamente por padrões de texto), apenas com as seções narrativas em
+branco para preenchimento manual. Todo conteúdo gerado pelo modelo é
+sempre marcado como rascunho e deve ser revisado antes de qualquer uso
+oficial.
 
 Exemplo, usando GPU:
 ```powershell

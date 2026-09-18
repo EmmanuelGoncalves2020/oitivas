@@ -103,3 +103,54 @@ class TermoCriar(BaseModel):
 
 class Capacidades(BaseModel):
     diarizacao_disponivel: bool
+    rascunho_ia_disponivel: bool
+
+
+class EncaminhamentoOut(BaseModel):
+    id: str
+    descricao: str
+    responsavel: Optional[str] = None
+    prazo: Optional[str] = None
+    status: str
+    origem: str
+    segmento_id: Optional[str] = None
+    criado_em: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class EncaminhamentoCriar(BaseModel):
+    descricao: str
+    responsavel: Optional[str] = None
+    prazo: Optional[str] = None
+    status: str = "Pendente"
+
+
+class EncaminhamentoAtualizar(BaseModel):
+    descricao: Optional[str] = None
+    responsavel: Optional[str] = None
+    prazo: Optional[str] = None
+    status: Optional[str] = None
+
+
+class AtaOut(BaseModel):
+    id: str
+    objetivo: Optional[str] = None
+    assuntos_tratados: Optional[str] = None
+    decisoes: Optional[str] = None
+    pendencias: Optional[str] = None
+    gerada_por_ia: bool
+    gerada_em: datetime
+    atualizada_em: Optional[datetime] = None
+    encaminhamentos: list[EncaminhamentoOut] = []
+
+    class Config:
+        from_attributes = True
+
+
+class AtaAtualizar(BaseModel):
+    objetivo: Optional[str] = None
+    assuntos_tratados: Optional[str] = None
+    decisoes: Optional[str] = None
+    pendencias: Optional[str] = None

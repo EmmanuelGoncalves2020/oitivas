@@ -28,6 +28,17 @@ class Settings(BaseSettings):
     hf_token: str | None = None
     diarization_model: str = "pyannote/speaker-diarization-3.1"
 
+    # Rascunho de Ata por IA local (Assuntos tratados/Decisões/Pendências) -
+    # OPCIONAL, desabilitado por padrão. Usa um servidor Ollama já em
+    # execução na própria máquina/rede interna (https://ollama.com) - a
+    # aplicação apenas faz uma chamada HTTP local, sem instalar bibliotecas
+    # pesadas e sem enviar dado algum para a internet. Sem essa configuração,
+    # as seções narrativas da ata ficam em branco para preenchimento manual.
+    # Consulte docs/INSTALACAO.md antes de habilitar.
+    ollama_habilitado: bool = False
+    ollama_url: str = "http://localhost:11434"
+    ollama_model: str = "llama3.1"
+
     # Formatos de entrada suportados
     allowed_extensions: set[str] = {
         ".mp3", ".wav", ".m4a", ".mp4", ".webm", ".ogg", ".aac", ".mov", ".mkv",

@@ -80,18 +80,55 @@ FastAPI (backend/app)
   propaga o novo nome para todos os segmentos daquele participante na
   reunião.
 
-## 5. O que NÃO está no MVP (por decisão de escopo, não por esquecimento)
+## 5. Fase 3: Ata/Relatório e Encaminhamentos
 
-- **Geração de ata/relatório e extração de encaminhamentos** — Fase 3.
+Dois produtos distintos, conforme especificado: a **transcrição** (fiel ao
+que foi dito) e a **ata/relatório** (documento estruturado derivado dela).
+A ata nunca substitui a transcrição - ambas coexistem e são exportadas
+separadamente.
+
+- **Encaminhamentos**: extração **heurística** (`services/encaminhamentos.py`),
+  baseada em padrões de texto (regex) - não é uma análise semântica. Procura
+  frases com marcadores de compromisso/ação ("vou verificar", "fica a
+  cargo de", "você pode conferir até...") e, apenas quando explicitamente
+  presentes na própria frase, um possível responsável (nome de participante
+  mencionado, ou quem fala em primeira pessoa) e prazo (datas ou expressões
+  temporais). Quando não encontrados, os campos ficam em branco - exibidos
+  como "Não identificado" na interface, nunca preenchidos por suposição.
+  Sempre apresentados como sugestão para revisão humana; o usuário edita,
+  corrige, exclui ou adiciona itens manualmente.
+- **Seções narrativas da ata** (Objetivo, Assuntos tratados, Decisões,
+  Pendências): por padrão, ficam **em branco** para preenchimento manual
+  durante a revisão - identificar semanticamente "do que se tratou a
+  reunião" ou "o que foi decidido" exige compreensão de linguagem natural,
+  que uma extração por regras não fornece com confiabilidade.
+- **Rascunho por IA local (opcional)**: quando `TRANSCRITOR_OLLAMA_HABILITADO=true`
+  e há um servidor Ollama (https://ollama.com) em execução na própria
+  máquina/rede interna, essas seções recebem um rascunho inicial gerado
+  por um modelo de linguagem local, com prompt que instrui explicitamente
+  a nunca inventar fatos além do que está na transcrição. Diferente da
+  diarização/transcrição, aqui não há biblioteca pesada nem download via
+  Hugging Face: apenas uma chamada HTTP a um servidor que já roda
+  localmente - nenhum dado sai da rede da instituição. O rascunho é
+  sempre marcado como gerado por IA (`gerada_por_ia=true`) e a interface
+  exibe aviso permanente para revisão antes de qualquer uso oficial;
+  campos já preenchidos manualmente pelo usuário nunca são sobrescritos.
+- Gerar a ata é uma ação explícita do usuário (`POST .../ata/gerar`), não
+  automática durante o upload - reforça o princípio de revisão humana
+  antes de qualquer documento estruturado ser produzido.
+
+## 6. O que NÃO está no MVP (por decisão de escopo, não por esquecimento)
+
 - **Autenticação, controle de acesso, logs de acesso por usuário,
   PostgreSQL** — Fase 4.
-- **Exportação em PDF** — planejada, ainda não implementada.
+- **Exportação em PDF** — planejada, ainda não implementada (nem para
+  transcrição, nem para ata).
 - **Migrações de banco**: o MVP usa `Base.metadata.create_all` (cria
   tabelas ausentes, não altera colunas existentes). Adequado para uso
   local sem dados críticos acumulados; Alembic fica previsto para a Fase 4
   (uso multiusuário com PostgreSQL).
 
-## 6. Requisitos de hardware
+## 7. Requisitos de hardware
 
 | Recurso | Mínimo | Recomendado |
 |---|---|---|
@@ -100,7 +137,7 @@ FastAPI (backend/app)
 | Disco | ~5 GB livres | 10 GB+ (modelo + áudios temporários) |
 | CPU | 4 núcleos | 8+ núcleos |
 
-## 7. Riscos técnicos conhecidos
+## 8. Riscos técnicos conhecidos
 
 - **Desempenho em CPU**: reuniões de 2h+ podem levar bastante tempo em
   máquinas sem GPU. Mitigado com processamento em background (não trava a
@@ -117,8 +154,18 @@ FastAPI (backend/app)
   como dependência transitiva (centenas de MB). Por isso fica em
   `requirements-diarizacao.txt` separado, instalado apenas por quem for
   habilitar a funcionalidade.
+- **Extração de encaminhamentos é heurística, não semântica**: baseada em
+  padrões de texto, pode deixar de capturar compromissos fraseados de
+  forma incomum, ou capturar frases que não são de fato um encaminhamento.
+  Por isso é sempre apresentada como sugestão editável, nunca como
+  resultado final.
+- **Rascunho de ata por IA local**: mesmo com prompt anti-alucinação, um
+  modelo de linguagem local pode produzir texto impreciso ou incompleto,
+  especialmente em modelos menores. A interface trata esse conteúdo
+  permanentemente como rascunho sujeito a revisão - nunca como texto
+  pronto para protocolo.
 
-## 8. Estratégia de segurança (MVP → evolução)
+## 9. Estratégia de segurança (MVP → evolução)
 
 - MVP (Fase 1): sem autenticação — destinado a uso local/individual. Isso é
   uma limitação conhecida e documentada, não uma omissão silenciosa.

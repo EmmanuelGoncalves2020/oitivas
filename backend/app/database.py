@@ -99,6 +99,38 @@ class Segmento(Base):
     reuniao = relationship("Reuniao", back_populates="segmentos")
 
 
+class AtaReuniao(Base):
+    __tablename__ = "atas"
+
+    id = Column(String, primary_key=True, default=_uuid)
+    reuniao_id = Column(String, ForeignKey("reunioes.id"), nullable=False, unique=True)
+
+    objetivo = Column(Text, nullable=True)
+    assuntos_tratados = Column(Text, nullable=True)
+    decisoes = Column(Text, nullable=True)
+    pendencias = Column(Text, nullable=True)
+
+    gerada_por_ia = Column(Boolean, default=False)
+    gerada_em = Column(DateTime, default=datetime.utcnow)
+    atualizada_em = Column(DateTime, nullable=True)
+
+
+class Encaminhamento(Base):
+    __tablename__ = "encaminhamentos"
+
+    id = Column(String, primary_key=True, default=_uuid)
+    reuniao_id = Column(String, ForeignKey("reunioes.id"), nullable=False)
+    segmento_id = Column(String, ForeignKey("segmentos.id"), nullable=True)
+
+    descricao = Column(Text, nullable=False)
+    responsavel = Column(String, nullable=True)  # None -> exibido como "Não identificado"
+    prazo = Column(String, nullable=True)  # None -> exibido como "Não identificado"
+    status = Column(String, default="Pendente")
+    origem = Column(String, default="automatica")  # "automatica" (heurística) ou "manual"
+
+    criado_em = Column(DateTime, default=datetime.utcnow)
+
+
 class TermoDicionario(Base):
     __tablename__ = "dicionario_termos"
 
