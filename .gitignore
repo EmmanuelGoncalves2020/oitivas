@@ -1,0 +1,19 @@
+# Ambiente Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# Dados locais da aplicação (áudios e transcrições são conteúdo sigiloso
+# e NUNCA devem ser versionados no git)
+backend/storage/uploads/
+backend/storage/audio/
+backend/storage/db.sqlite3
+backend/storage/*.sqlite3
+
+# Modelos baixados localmente (se apontados para dentro do repo)
+models/
+
+# Diversos
+.DS_Store
+*.log

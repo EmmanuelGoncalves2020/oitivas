@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Transcritor CTCE</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <span class="brand-mark">CTCE</span>
+      <span class="brand-name">Transcritor CTCE</span>
+    </div>
+    <button id="btn-nova" class="btn btn-primary">+ Nova transcrição</button>
+  </div>
+</header>
+
+<main class="container">
+
+  <!-- VISÃO INICIAL / HISTÓRICO -->
+  <section id="view-home" class="view">
+    <div class="hero">
+      <h1>Transcritor CTCE</h1>
+      <p>Transforme gravações de reuniões em transcrições organizadas, com processamento local e revisão humana.</p>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <h2>Histórico de reuniões</h2>
+        <input id="busca-historico" type="search" placeholder="Buscar por título..." />
+      </div>
+      <table class="tabela">
+        <thead>
+          <tr>
+            <th>Data</th>
+            <th>Reunião</th>
+            <th>Duração</th>
+            <th>Status</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody id="tabela-historico-body">
+        </tbody>
+      </table>
+      <p id="historico-vazio" class="texto-vazio hidden">Nenhuma reunião processada ainda.</p>
+    </div>
+  </section>
+
+  <!-- NOVA TRANSCRIÇÃO: SELEÇÃO DE ARQUIVO -->
+  <section id="view-upload" class="view hidden">
+    <div class="panel panel-estreito">
+      <h2>Nova transcrição</h2>
+
+      <div id="dropzone" class="dropzone">
+        <p>Selecione um arquivo de áudio ou vídeo da reunião</p>
+        <input type="file" id="input-arquivo" accept=".mp3,.wav,.m4a,.mp4,.webm,.ogg,.aac,.mov,.mkv" />
+        <p class="dropzone-hint">Formatos suportados: MP3, WAV, M4A, MP4, WEBM, OGG, AAC, MOV, MKV</p>
+      </div>
+
+      <div id="arquivo-info" class="arquivo-info hidden">
+        <div class="arquivo-info-linha"><span>Arquivo</span><strong id="info-nome"></strong></div>
+        <div class="arquivo-info-linha"><span>Tamanho</span><strong id="info-tamanho"></strong></div>
+        <div class="arquivo-info-linha"><span>Duração</span><strong id="info-duracao"></strong></div>
+        <div class="arquivo-info-linha"><span>Formato</span><strong id="info-formato"></strong></div>
+
+        <label class="campo">
+          Título da reunião
+          <input type="text" id="input-titulo" placeholder="Ex.: Reunião de Corregedoria - 18/09/2026" />
+        </label>
+
+        <label class="checkbox-linha">
+          <input type="checkbox" id="input-excluir-audio" />
+          Excluir áudio original após o processamento (manter somente a transcrição)
+        </label>
+
+        <div class="acoes">
+          <button id="btn-cancelar-upload" class="btn btn-secundario">Cancelar</button>
+          <button id="btn-iniciar" class="btn btn-primary">Iniciar transcrição</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PROCESSAMENTO -->
+  <section id="view-processando" class="view hidden">
+    <div class="panel panel-estreito processando-panel">
+      <h2 id="processando-titulo">Processando reunião...</h2>
+      <div class="barra-progresso">
+        <div id="barra-progresso-fill" class="barra-progresso-fill" style="width:0%"></div>
+      </div>
+      <p id="processando-etapa" class="etapa">Preparando áudio...</p>
+      <p id="processando-percentual" class="percentual">0%</p>
+      <p id="processando-tempo" class="tempo-decorrido">Tempo decorrido: 00:00</p>
+      <p id="processando-erro" class="erro hidden"></p>
+      <div class="acoes">
+        <button id="btn-voltar-home" class="btn btn-secundario hidden">Voltar ao início</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- REVISÃO / EDITOR -->
+  <section id="view-revisao" class="view hidden">
+    <div class="revisao-header">
+      <div>
+        <h2 id="revisao-titulo">Reunião</h2>
+        <p id="revisao-meta" class="texto-secundario"></p>
+      </div>
+      <div class="acoes">
+        <button id="btn-exportar-docx" class="btn btn-secundario">Gerar DOCX</button>
+        <button id="btn-exportar-txt" class="btn btn-secundario">Gerar TXT</button>
+        <button id="btn-exportar-pdf" class="btn btn-desabilitado" disabled title="Disponível em versão futura">Gerar PDF (em breve)</button>
+        <button id="btn-exportar-ata" class="btn btn-desabilitado" disabled title="Disponível na Fase 3 do roadmap">Gerar Ata (em breve)</button>
+      </div>
+    </div>
+
+    <p class="aviso-diarizacao">
+      A identificação individual de participantes (diarização) ainda não está disponível nesta versão
+      — todos os trechos aparecem sem rótulo de participante. Você pode revisar e editar o texto abaixo livremente.
+    </p>
+
+    <div id="lista-segmentos" class="lista-segmentos"></div>
+  </section>
+
+</main>
+
+<script src="/js/app.js"></script>
+</body>
+</html>
