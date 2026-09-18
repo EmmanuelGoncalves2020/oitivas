@@ -30,6 +30,7 @@ async def enviar_reuniao(
     arquivo: UploadFile = File(...),
     titulo: Optional[str] = Form(None),
     excluir_audio_apos_processar: bool = Form(False),
+    usar_diarizacao: bool = Form(False),
     usuario_responsavel: Optional[str] = Form(None),
     db: Session = Depends(get_db),
 ):
@@ -48,6 +49,7 @@ async def enviar_reuniao(
         tamanho_bytes=len(conteudo),
         status=StatusReuniao.PENDENTE.value,
         excluir_audio_apos_processar=excluir_audio_apos_processar,
+        diarizacao_solicitada=usar_diarizacao,
         usuario_responsavel=usuario_responsavel,
     )
     db.add(reuniao)

@@ -40,6 +40,7 @@ class ReuniaoResumo(BaseModel):
 class ReuniaoDetalhe(ReuniaoResumo):
     idioma: str
     modelo_whisper: Optional[str] = None
+    diarizacao_solicitada: bool
     diarizacao_disponivel: bool
     mensagem_erro: Optional[str] = None
     audio_excluido: bool
@@ -85,3 +86,20 @@ class SegmentosMesclar(BaseModel):
 class RenomearParticipante(BaseModel):
     nome_atual: str
     nome_novo: str
+
+
+class TermoOut(BaseModel):
+    id: str
+    termo: str
+    criado_em: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class TermoCriar(BaseModel):
+    termo: str
+
+
+class Capacidades(BaseModel):
+    diarizacao_disponivel: bool

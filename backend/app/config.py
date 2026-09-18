@@ -19,6 +19,15 @@ class Settings(BaseSettings):
     whisper_compute_type: str = "int8"  # int8 (cpu) / float16 (gpu)
     whisper_language: str = "pt"
 
+    # Diarização (identificação de participantes) - OPCIONAL, desabilitada por
+    # padrão. Usa pyannote.audio, que roda localmente após um download único
+    # (uma única vez, por modelo) dos pesos a partir do Hugging Face Hub -
+    # exige conta gratuita + aceite dos termos do modelo + token de acesso.
+    # Consulte docs/INSTALACAO.md antes de habilitar.
+    diarizacao_habilitada: bool = False
+    hf_token: str | None = None
+    diarization_model: str = "pyannote/speaker-diarization-3.1"
+
     # Formatos de entrada suportados
     allowed_extensions: set[str] = {
         ".mp3", ".wav", ".m4a", ".mp4", ".webm", ".ogg", ".aac", ".mov", ".mkv",

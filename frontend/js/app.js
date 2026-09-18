@@ -2,13 +2,17 @@
 "use strict";
 
 const API = "/api/meetings";
+const API_DICIONARIO = "/api/dicionario";
 
 const views = {
   home: document.getElementById("view-home"),
   upload: document.getElementById("view-upload"),
   processando: document.getElementById("view-processando"),
   revisao: document.getElementById("view-revisao"),
+  dicionario: document.getElementById("view-dicionario"),
 };
+
+let capacidades = { diarizacao_disponivel: false };
 
 function mostrarView(nome) {
   Object.values(views).forEach((v) => v.classList.add("hidden"));
@@ -62,11 +66,17 @@ const BADGES = {
   cancelada: ["Cancelada", "badge-erro"],
 };
 
-async function carregarHistorico(busca = "") {
+async function carregarHistorico() {
+  const busca = document.getElementById("busca-historico").value;
+  const status = document.getElementById("filtro-status-historico").value;
   const corpo = document.getElementById("tabela-historico-body");
   const vazio = document.getElementById("historico-vazio");
-  const params = busca ? `?busca=${encodeURIComponent(busca)}` : "";
-  const reunioes = await apiFetch(`${API}${params}`);
+
+  const params = new URLSearchParams();
+  if (busca) params.set("busca", busca);
+  if (status) params.set("status", status);
+  const query = params.toString() ? `?${params.toString()}` : "";
+  const reunioes = await apiFetch(`${API}${query}`);
 
   corpo.innerHTML = "";
   vazio.classList.toggle("hidden", reunioes.length > 0);
@@ -103,9 +113,8 @@ function abrirReuniao(id, status) {
   }
 }
 
-document.getElementById("busca-historico").addEventListener("input", (e) => {
-  carregarHistorico(e.target.value);
-});
+document.getElementById("busca-historico").addEventListener("input", () => carregarHistorico());
+document.getElementById("filtro-status-historico").addEventListener("change", () => carregarHistorico());
 
 // ---------------------------------------------------------------------------
 // NOVA TRANSCRIÇÃO / UPLOAD
@@ -116,6 +125,8 @@ let duracaoSelecionada = null;
 
 document.getElementById("btn-nova").addEventListener("click", () => {
   resetarFormularioUpload();
+  document.getElementById("linha-diarizacao").classList.toggle("hidden", !capacidades.diarizacao_disponivel);
+  document.getElementById("aviso-diarizacao-indisponivel").classList.toggle("hidden", capacidades.diarizacao_disponivel);
   mostrarView("upload");
 });
 
@@ -131,6 +142,7 @@ function resetarFormularioUpload() {
   document.getElementById("arquivo-info").classList.add("hidden");
   document.getElementById("input-titulo").value = "";
   document.getElementById("input-excluir-audio").checked = false;
+  document.getElementById("input-diarizacao").checked = false;
 }
 
 document.getElementById("input-arquivo").addEventListener("change", async (e) => {
@@ -174,6 +186,7 @@ document.getElementById("btn-iniciar").addEventListener("click", async () => {
   formData.append("arquivo", arquivoSelecionado);
   formData.append("titulo", document.getElementById("input-titulo").value || arquivoSelecionado.name);
   formData.append("excluir_audio_apos_processar", document.getElementById("input-excluir-audio").checked);
+  formData.append("usar_diarizacao", capacidades.diarizacao_disponivel && document.getElementById("input-diarizacao").checked);
 
   try {
     const reuniao = await apiFetch(`${API}/upload`, { method: "POST", body: formData });
@@ -270,7 +283,61 @@ async function abrirRevisao(id) {
     `${formatarData(reuniaoAtual.criado_em)} · Duração: ${formatarTempo(reuniaoAtual.duracao_segundos)} ` +
     `· ${reuniaoAtual.segmentos.length} segmentos`;
 
+  atualizarAvisoDiarizacao();
+  renderizarParticipantes();
   renderizarSegmentos();
+}
+
+function atualizarAvisoDiarizacao() {
+  const aviso = document.getElementById("aviso-diarizacao");
+  if (reuniaoAtual.diarizacao_disponivel) {
+    aviso.textContent = "Participantes identificados automaticamente (diarização). Revise e renomeie conforme necessário — a separação por voz é uma estimativa e pode conter imprecisões.";
+    aviso.classList.remove("hidden");
+    aviso.classList.add("sucesso");
+  } else if (reuniaoAtual.diarizacao_solicitada) {
+    aviso.textContent = "A identificação de participantes foi solicitada, mas não pôde ser concluída nesta reunião. A transcrição segue disponível sem rótulo de participante.";
+    aviso.classList.remove("hidden", "sucesso");
+  } else {
+    aviso.textContent = "A identificação individual de participantes (diarização) não foi utilizada nesta transcrição — todos os trechos aparecem sem rótulo de participante.";
+    aviso.classList.remove("hidden", "sucesso");
+  }
+}
+
+function renderizarParticipantes() {
+  const painel = document.getElementById("painel-participantes");
+  const lista = document.getElementById("lista-participantes");
+  const nomes = [...new Set(reuniaoAtual.segmentos.map((s) => s.falante).filter(Boolean))];
+
+  if (nomes.length === 0) {
+    painel.classList.add("hidden");
+    lista.innerHTML = "";
+    return;
+  }
+
+  painel.classList.remove("hidden");
+  lista.innerHTML = "";
+  nomes.forEach((nome) => {
+    const chip = document.createElement("div");
+    chip.className = "chip-participante";
+    chip.innerHTML = `<input type="text" value="${escaparHtml(nome)}" /><button>Renomear</button>`;
+    chip.querySelector("button").addEventListener("click", async () => {
+      const novoNome = chip.querySelector("input").value.trim();
+      if (!novoNome || novoNome === nome) return;
+      try {
+        await apiFetch(`${API}/${reuniaoAtual.id}/participantes/renomear`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ nome_atual: nome, nome_novo: novoNome }),
+        });
+        reuniaoAtual.segmentos.forEach((s) => { if (s.falante === nome) s.falante = novoNome; });
+        renderizarParticipantes();
+        renderizarSegmentos();
+      } catch (erro) {
+        alert(`Não foi possível renomear o participante: ${erro.message}`);
+      }
+    });
+    lista.appendChild(chip);
+  });
 }
 
 function renderizarSegmentos() {
@@ -291,6 +358,7 @@ function renderizarSegmentos() {
         <span class="segmento-tempo">${formatarTempo(seg.inicio_segundos)} - ${formatarTempo(seg.fim_segundos)}</span>
         ${seg.baixa_confianca ? '<span class="segmento-flag">⚠ baixa confiança - revisar</span>' : ""}
       </div>
+      <input class="segmento-falante" type="text" placeholder="Participante (opcional)" value="${escaparHtml(seg.falante || "")}" />
       <textarea>${escaparHtml(seg.texto)}</textarea>
       <div class="segmento-acoes">
         <button data-acao="salvar">Salvar</button>
@@ -305,8 +373,9 @@ function renderizarSegmentos() {
   lista.querySelectorAll(".segmento").forEach((div) => {
     const id = div.dataset.id;
     const textarea = div.querySelector("textarea");
+    const inputFalante = div.querySelector(".segmento-falante");
 
-    div.querySelector('[data-acao="salvar"]').addEventListener("click", () => salvarSegmento(id, textarea.value));
+    div.querySelector('[data-acao="salvar"]').addEventListener("click", () => salvarSegmento(id, textarea.value, inputFalante.value));
     div.querySelector('[data-acao="excluir"]').addEventListener("click", () => excluirSegmento(id));
     div.querySelector('[data-acao="mesclar-proximo"]').addEventListener("click", () => mesclarComProximo(id));
     div.querySelector('[data-acao="dividir"]').addEventListener("click", () => {
@@ -316,15 +385,16 @@ function renderizarSegmentos() {
   });
 }
 
-async function salvarSegmento(id, texto) {
+async function salvarSegmento(id, texto, falante) {
   try {
     await apiFetch(`${API}/${reuniaoAtual.id}/segmentos/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ texto }),
+      body: JSON.stringify({ texto, falante }),
     });
     const seg = reuniaoAtual.segmentos.find((s) => s.id === id);
-    if (seg) seg.texto = texto;
+    if (seg) { seg.texto = texto; seg.falante = falante || null; }
+    renderizarParticipantes();
   } catch (erro) {
     alert(`Não foi possível salvar o trecho: ${erro.message}`);
   }
@@ -335,6 +405,7 @@ async function excluirSegmento(id) {
   try {
     await apiFetch(`${API}/${reuniaoAtual.id}/segmentos/${id}`, { method: "DELETE" });
     reuniaoAtual.segmentos = reuniaoAtual.segmentos.filter((s) => s.id !== id);
+    renderizarParticipantes();
     renderizarSegmentos();
   } catch (erro) {
     alert(`Não foi possível excluir o trecho: ${erro.message}`);
@@ -386,7 +457,75 @@ document.getElementById("btn-exportar-txt").addEventListener("click", () => {
 });
 
 // ---------------------------------------------------------------------------
+// DICIONÁRIO INSTITUCIONAL
+// ---------------------------------------------------------------------------
+
+document.getElementById("btn-dicionario").addEventListener("click", () => {
+  mostrarView("dicionario");
+  carregarDicionario();
+});
+document.getElementById("btn-fechar-dicionario").addEventListener("click", () => {
+  mostrarView("home");
+  carregarHistorico();
+});
+
+async function carregarDicionario() {
+  const lista = document.getElementById("lista-dicionario");
+  const vazio = document.getElementById("dicionario-vazio");
+  const termos = await apiFetch(API_DICIONARIO);
+
+  lista.innerHTML = "";
+  vazio.classList.toggle("hidden", termos.length > 0);
+
+  termos.forEach((termo) => {
+    const li = document.createElement("li");
+    li.innerHTML = `<span>${escaparHtml(termo.termo)}</span><button>Excluir</button>`;
+    li.querySelector("button").addEventListener("click", async () => {
+      if (!confirm(`Excluir o termo "${termo.termo}" do dicionário?`)) return;
+      try {
+        await apiFetch(`${API_DICIONARIO}/${termo.id}`, { method: "DELETE" });
+        carregarDicionario();
+      } catch (erro) {
+        alert(`Não foi possível excluir o termo: ${erro.message}`);
+      }
+    });
+    lista.appendChild(li);
+  });
+}
+
+document.getElementById("btn-adicionar-termo").addEventListener("click", adicionarTermo);
+document.getElementById("input-novo-termo").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") adicionarTermo();
+});
+
+async function adicionarTermo() {
+  const input = document.getElementById("input-novo-termo");
+  const termo = input.value.trim();
+  if (!termo) return;
+  try {
+    await apiFetch(API_DICIONARIO, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ termo }),
+    });
+    input.value = "";
+    carregarDicionario();
+  } catch (erro) {
+    alert(`Não foi possível adicionar o termo: ${erro.message}`);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // INICIALIZAÇÃO
 // ---------------------------------------------------------------------------
 
-carregarHistorico();
+async function inicializar() {
+  try {
+    capacidades = await apiFetch("/api/sistema/capacidades");
+  } catch (_) {
+    capacidades = { diarizacao_disponivel: false };
+  }
+  carregarHistorico();
+}
+
+inicializar();

@@ -46,6 +46,9 @@ body {
   letter-spacing: 0.05em;
 }
 .brand-name { font-weight: 600; font-size: 1.05rem; }
+.topbar-acoes { display: flex; gap: 0.6rem; align-items: center; }
+.btn-topbar { background: transparent; color: var(--branco); border: 1px solid rgba(255,255,255,0.5); }
+.btn-topbar:hover { background: rgba(255,255,255,0.1); }
 
 .container { max-width: 1000px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
 
@@ -75,6 +78,13 @@ body {
   border: 1px solid var(--cinza-borda);
   border-radius: 6px;
   min-width: 220px;
+}
+.filtros-historico { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.filtros-historico select {
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--cinza-borda);
+  border-radius: 6px;
+  color: var(--texto-principal);
 }
 
 .tabela { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
@@ -180,6 +190,82 @@ body {
   border-radius: 6px;
   font-size: 0.85rem;
   margin: 1rem 0;
+}
+.aviso-diarizacao.hidden { display: none; }
+.aviso-diarizacao.sucesso { background: #e3f5ea; border-color: #b7e2c9; color: var(--verde-sucesso); }
+
+.painel-participantes {
+  background: var(--branco);
+  border: 1px solid var(--cinza-borda);
+  border-radius: 8px;
+  padding: 0.9rem 1rem;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
+.lista-participantes { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.6rem; }
+.chip-participante {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: var(--cinza-fundo);
+  border: 1px solid var(--cinza-borda);
+  border-radius: 999px;
+  padding: 0.3rem 0.4rem 0.3rem 0.8rem;
+  font-size: 0.85rem;
+}
+.chip-participante input {
+  border: none;
+  background: transparent;
+  font-size: 0.85rem;
+  width: 8rem;
+}
+.chip-participante button {
+  background: var(--azul-institucional);
+  color: var(--branco);
+  border: none;
+  border-radius: 999px;
+  padding: 0.15rem 0.6rem;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.segmento-falante {
+  display: inline-block;
+  min-width: 8rem;
+  border: 1px solid var(--cinza-borda);
+  border-radius: 5px;
+  padding: 0.2rem 0.4rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--azul-institucional);
+  margin-right: 0.5rem;
+}
+
+.campo-com-botao { display: flex; gap: 0.5rem; margin: 1rem 0; }
+.campo-com-botao input {
+  flex: 1;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--cinza-borda);
+  border-radius: 6px;
+  font-size: 0.95rem;
+}
+
+.lista-dicionario { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.4rem; }
+.lista-dicionario li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--cinza-borda);
+  border-radius: 6px;
+  font-size: 0.92rem;
+}
+.lista-dicionario li button {
+  background: none;
+  border: none;
+  color: var(--vermelho-erro);
+  cursor: pointer;
+  font-size: 0.8rem;
 }
 
 .lista-segmentos { display: flex; flex-direction: column; gap: 0.9rem; margin-top: 1rem; }

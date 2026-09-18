@@ -74,16 +74,23 @@ def _limpar_texto(texto: str) -> str:
 def transcrever(
     caminho_audio: Path,
     progresso_callback: Callable[[float], None] | None = None,
+    termos_dicionario: list[str] | None = None,
 ) -> Iterator[SegmentoTranscrito]:
     """Transcreve o áudio localmente, gerando segmentos com timestamp.
 
     progresso_callback recebe um valor de 0.0 a 1.0 conforme o processamento avança.
+    termos_dicionario (opcional) são termos institucionais cadastrados pelo
+    usuário (siglas, nomes, cargos) usados para orientar o reconhecimento de
+    fala via prompt inicial do Whisper - apenas influenciam a probabilidade
+    de reconhecimento correto, nunca inserem conteúdo que não foi falado.
     """
     modelo = _carregar_modelo()
+    initial_prompt = ", ".join(termos_dicionario) if termos_dicionario else None
     segmentos, info = modelo.transcribe(
         str(caminho_audio),
         language=settings.whisper_language,
         vad_filter=True,
+        initial_prompt=initial_prompt,
     )
 
     duracao_total = info.duration or 1.0

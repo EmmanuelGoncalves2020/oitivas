@@ -7,7 +7,7 @@ Transforma gravações de áudio/vídeo em transcrições organizadas, com
 processamento **local/offline** (sem envio de áudio ou texto a serviços
 externos de IA), revisão humana e exportação em documento profissional.
 
-## Status: MVP — Fase 1 do roadmap
+## Status: MVP — Fases 1 e 2 do roadmap
 
 Implementado nesta versão:
 - Upload de áudio/vídeo (MP3, WAV, M4A, MP4, WEBM, OGG, AAC, MOV, MKV);
@@ -15,15 +15,22 @@ Implementado nesta versão:
 - transcrição local com timestamps (faster-whisper);
 - sinalização de trechos com baixa confiança para revisão;
 - editor de revisão (editar, dividir, unir e excluir trechos);
+- **diarização opcional** (identificação de participantes) via
+  pyannote.audio — desabilitada por padrão, requer configuração explícita
+  (ver `docs/INSTALACAO.md`); com renomeação de participantes propagada
+  para todos os trechos;
+- **dicionário institucional de termos** (siglas, nomes, expressões) usado
+  para orientar o reconhecimento de fala;
+- histórico de reuniões com busca por título e filtro por status;
 - exportação em DOCX e TXT;
-- histórico de reuniões processadas;
 - opção de excluir o áudio original após o processamento;
-- registro de eventos (upload, processamento, exportação, exclusão).
+- registro de eventos (upload, processamento, exportação, exclusão,
+  diarização indisponível).
 
 **Ainda não implementado** (fases seguintes do roadmap, ver
-`docs/ARQUITETURA.md`): diarização/identificação de participantes,
-dicionário institucional de termos, geração de ata/relatório e extração de
-encaminhamentos, exportação em PDF, autenticação e controle de acesso.
+`docs/ARQUITETURA.md`): geração de ata/relatório e extração de
+encaminhamentos (Fase 3), exportação em PDF, autenticação e controle de
+acesso (Fase 4).
 
 ## Documentação
 

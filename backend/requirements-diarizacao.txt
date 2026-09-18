@@ -1,0 +1,7 @@
+# Dependências OPCIONAIS para diarização (identificação de participantes).
+# Instale apenas se for habilitar TRANSCRITOR_DIARIZACAO_HABILITADA=true.
+# São bibliotecas pesadas (incluem PyTorch) - consulte docs/INSTALACAO.md
+# antes de instalar, inclusive quanto ao download único do modelo a partir
+# do Hugging Face Hub (requer conta gratuita, aceite dos termos do modelo e
+# um token de acesso).
+pyannote.audio==3.3.2

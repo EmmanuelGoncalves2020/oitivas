@@ -95,6 +95,36 @@ No terminal onde o `uvicorn` está rodando, pressione `Ctrl + C`.
 | `TRANSCRITOR_WHISPER_DEVICE` | `cpu` | `cpu` ou `cuda` |
 | `TRANSCRITOR_WHISPER_COMPUTE_TYPE` | `int8` | `int8` (CPU) ou `float16` (GPU) |
 | `TRANSCRITOR_WHISPER_LANGUAGE` | `pt` | Idioma da transcrição |
+| `TRANSCRITOR_DIARIZACAO_HABILITADA` | `false` | Habilita a identificação de participantes |
+| `TRANSCRITOR_HF_TOKEN` | (vazio) | Token do Hugging Face (necessário para diarização) |
+
+## 9. Habilitar diarização (identificação de participantes) — opcional
+
+Por padrão, a diarização vem **desabilitada**. Para habilitá-la:
+
+1. Crie uma conta gratuita em https://huggingface.co.
+2. Acesse a página do modelo `pyannote/speaker-diarization-3.1` e aceite os
+   termos de uso (e do modelo `pyannote/segmentation-3.0`, do qual ele
+   depende — a própria página indica).
+3. Gere um token em *Settings > Access Tokens* (permissão de leitura já
+   basta).
+4. Instale as dependências adicionais (bibliotecas pesadas, incluem
+   PyTorch):
+   ```powershell
+   pip install -r requirements-diarizacao.txt
+   ```
+5. Configure as variáveis de ambiente antes de iniciar o servidor:
+   ```powershell
+   $env:TRANSCRITOR_DIARIZACAO_HABILITADA = "true"
+   $env:TRANSCRITOR_HF_TOKEN = "hf_xxx..."
+   uvicorn app.main:app --host 127.0.0.1 --port 8000
+   ```
+
+**O que isso envia para fora da máquina**: apenas o download único dos
+pesos dos modelos de diarização, feito pela biblioteca `pyannote.audio` a
+partir do Hugging Face Hub na primeira execução — nunca o áudio das
+reuniões. Sem essa configuração, a ferramenta funciona normalmente, apenas
+sem identificação de participantes.
 
 Exemplo, usando GPU:
 ```powershell

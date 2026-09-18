@@ -10,22 +10,33 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
-from .routers import meetings
+from . import schemas
+from .config import settings
+from .routers import dicionario, meetings
 
 logging.basicConfig(level=logging.INFO)
 
 app = FastAPI(
     title="Transcritor CTCE",
     description="Transcrição automática e local de reuniões institucionais.",
-    version="0.1.0-mvp",
+    version="0.2.0-mvp-fase2",
 )
 
 app.include_router(meetings.router)
+app.include_router(dicionario.router)
 
 
 @app.get("/api/saude")
 def saude():
     return {"status": "ok"}
+
+
+@app.get("/api/sistema/capacidades", response_model=schemas.Capacidades)
+def capacidades():
+    """Informa ao frontend quais funcionalidades opcionais estão configuradas
+    nesta instalação (ex.: diarização), para não exibir controles que não
+    vão funcionar."""
+    return schemas.Capacidades(diarizacao_disponivel=settings.diarizacao_habilitada)
 
 
 # Servir o frontend estático por último: um Mount em "/" é um prefixo

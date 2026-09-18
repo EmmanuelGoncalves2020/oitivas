@@ -11,8 +11,8 @@ from datetime import datetime
 from pathlib import Path
 
 from .config import settings
-from .database import LogEvento, Reuniao, SessionLocal, Segmento, StatusReuniao
-from .services import audio, transcription
+from .database import LogEvento, Reuniao, SessionLocal, Segmento, StatusReuniao, TermoDicionario
+from .services import audio, diarization, transcription
 
 logger = logging.getLogger("transcritor_ctce.jobs")
 
@@ -65,23 +65,50 @@ def _processar(reuniao_id: str) -> None:
         )
 
         def _callback_progresso(fracao: float) -> None:
-            percentual = 10 + int(fracao * 70)  # 10% a 80% reservado à transcrição
-            _atualizar(db, reuniao, progresso_percentual=min(percentual, 80))
+            teto = 75 if reuniao.diarizacao_solicitada else 85
+            percentual = 10 + int(fracao * (teto - 10))
+            _atualizar(db, reuniao, progresso_percentual=min(percentual, teto))
+
+        termos = [t.termo for t in db.query(TermoDicionario).all()]
 
         ordem = 0
-        for trecho in transcription.transcrever(extraido, _callback_progresso):
+        segmentos_criados: list[Segmento] = []
+        for trecho in transcription.transcrever(extraido, _callback_progresso, termos_dicionario=termos):
             ordem += 1
-            db.add(Segmento(
+            segmento = Segmento(
                 reuniao_id=reuniao.id,
                 ordem=ordem,
                 inicio_segundos=trecho.inicio_segundos,
                 fim_segundos=trecho.fim_segundos,
-                falante=None,  # diarização ainda não implementada (Fase 2)
+                falante=None,
                 texto=trecho.texto,
                 confianca_media=trecho.confianca_media,
                 baixa_confianca=trecho.baixa_confianca,
-            ))
+            )
+            db.add(segmento)
+            segmentos_criados.append(segmento)
         db.commit()
+
+        if reuniao.diarizacao_solicitada:
+            _atualizar(db, reuniao, etapa_atual="Identificando participantes...", progresso_percentual=85)
+            try:
+                if not settings.diarizacao_habilitada:
+                    raise diarization.DiarizacaoIndisponivelError(
+                        "Diarização não está habilitada nesta instalação (consulte docs/INSTALACAO.md)."
+                    )
+                trechos_falantes = diarization.diarizar(extraido)
+                rotulos = diarization.atribuir_falantes(
+                    [(s.inicio_segundos, s.fim_segundos) for s in segmentos_criados],
+                    trechos_falantes,
+                )
+                for segmento, rotulo in zip(segmentos_criados, rotulos):
+                    segmento.falante = rotulo
+                db.commit()
+                _atualizar(db, reuniao, diarizacao_disponivel=True)
+                _registrar_log(db, reuniao.id, "processamento", "Diarização concluída.", reuniao.usuario_responsavel)
+            except diarization.DiarizacaoIndisponivelError as exc:
+                logger.warning("Diarização indisponível para reunião %s: %s", reuniao_id, exc)
+                _registrar_log(db, reuniao.id, "diarizacao_indisponivel", str(exc), reuniao.usuario_responsavel)
 
         _atualizar(
             db, reuniao,

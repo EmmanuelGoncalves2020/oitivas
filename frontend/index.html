@@ -13,7 +13,10 @@
       <span class="brand-mark">CTCE</span>
       <span class="brand-name">Transcritor CTCE</span>
     </div>
-    <button id="btn-nova" class="btn btn-primary">+ Nova transcrição</button>
+    <div class="topbar-acoes">
+      <button id="btn-dicionario" class="btn btn-secundario btn-topbar">Dicionário institucional</button>
+      <button id="btn-nova" class="btn btn-primary">+ Nova transcrição</button>
+    </div>
   </div>
 </header>
 
@@ -29,7 +32,16 @@
     <div class="panel">
       <div class="panel-header">
         <h2>Histórico de reuniões</h2>
-        <input id="busca-historico" type="search" placeholder="Buscar por título..." />
+        <div class="filtros-historico">
+          <select id="filtro-status-historico">
+            <option value="">Todos os status</option>
+            <option value="concluida">Concluída</option>
+            <option value="processando">Processando</option>
+            <option value="pendente">Pendente</option>
+            <option value="erro">Erro</option>
+          </select>
+          <input id="busca-historico" type="search" placeholder="Buscar por título..." />
+        </div>
       </div>
       <table class="tabela">
         <thead>
@@ -75,6 +87,14 @@
           Excluir áudio original após o processamento (manter somente a transcrição)
         </label>
 
+        <label id="linha-diarizacao" class="checkbox-linha hidden">
+          <input type="checkbox" id="input-diarizacao" />
+          Tentar identificar participantes (diarização)
+        </label>
+        <p id="aviso-diarizacao-indisponivel" class="texto-secundario hidden">
+          Identificação de participantes (diarização) não está configurada nesta instalação.
+        </p>
+
         <div class="acoes">
           <button id="btn-cancelar-upload" class="btn btn-secundario">Cancelar</button>
           <button id="btn-iniciar" class="btn btn-primary">Iniciar transcrição</button>
@@ -115,12 +135,38 @@
       </div>
     </div>
 
-    <p class="aviso-diarizacao">
-      A identificação individual de participantes (diarização) ainda não está disponível nesta versão
-      — todos os trechos aparecem sem rótulo de participante. Você pode revisar e editar o texto abaixo livremente.
-    </p>
+    <p id="aviso-diarizacao" class="aviso-diarizacao"></p>
+
+    <div id="painel-participantes" class="painel-participantes hidden">
+      <strong>Participantes identificados:</strong>
+      <div id="lista-participantes" class="lista-participantes"></div>
+    </div>
 
     <div id="lista-segmentos" class="lista-segmentos"></div>
+  </section>
+
+  <!-- DICIONÁRIO INSTITUCIONAL -->
+  <section id="view-dicionario" class="view hidden">
+    <div class="panel panel-estreito">
+      <h2>Dicionário institucional</h2>
+      <p class="texto-secundario">
+        Cadastre siglas, nomes e expressões recorrentes (ex.: CTCE, SEFAZ, SEI,
+        Auditor Fiscal da Receita Estadual) para orientar o reconhecimento de fala
+        nas próximas transcrições.
+      </p>
+
+      <div class="campo-com-botao">
+        <input type="text" id="input-novo-termo" placeholder="Ex.: Corregedoria Tributária de Controle Externo" />
+        <button id="btn-adicionar-termo" class="btn btn-primary">Adicionar</button>
+      </div>
+
+      <ul id="lista-dicionario" class="lista-dicionario"></ul>
+      <p id="dicionario-vazio" class="texto-vazio hidden">Nenhum termo cadastrado ainda.</p>
+
+      <div class="acoes">
+        <button id="btn-fechar-dicionario" class="btn btn-secundario">Voltar</button>
+      </div>
+    </div>
   </section>
 
 </main>

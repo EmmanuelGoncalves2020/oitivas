@@ -56,6 +56,7 @@ class Reuniao(Base):
 
     idioma = Column(String, default="pt")
     modelo_whisper = Column(String, nullable=True)
+    diarizacao_solicitada = Column(Boolean, default=False)
     diarizacao_disponivel = Column(Boolean, default=False)
 
     caminho_audio_original = Column(String, nullable=True)
@@ -96,6 +97,14 @@ class Segmento(Base):
     editado_manualmente = Column(Boolean, default=False)
 
     reuniao = relationship("Reuniao", back_populates="segmentos")
+
+
+class TermoDicionario(Base):
+    __tablename__ = "dicionario_termos"
+
+    id = Column(String, primary_key=True, default=_uuid)
+    termo = Column(String, nullable=False, unique=True)
+    criado_em = Column(DateTime, default=datetime.utcnow)
 
 
 class LogEvento(Base):
