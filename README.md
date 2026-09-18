@@ -14,7 +14,11 @@ Implementado nesta versão:
 - extração automática de áudio de arquivos de vídeo (ffmpeg);
 - transcrição local com timestamps (faster-whisper);
 - sinalização de trechos com baixa confiança para revisão;
-- editor de revisão (editar, dividir, unir e excluir trechos);
+- editor de revisão (editar, dividir, unir, excluir e **inserir manualmente**
+  um trecho que a transcrição não capturou, com um "+" entre os trechos);
+- **salvamento automático** em todos os campos de texto (segmentos, ata,
+  participantes, encaminhamentos) - nunca perde uma edição por esquecer de
+  clicar em salvar;
 - **diarização opcional** (identificação de participantes) via
   pyannote.audio — desabilitada por padrão, requer configuração explícita
   (ver `docs/INSTALACAO.md`);

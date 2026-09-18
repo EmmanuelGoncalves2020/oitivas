@@ -445,7 +445,15 @@ function renderizarSegmentos() {
   lista.innerHTML = "";
 
   if (reuniaoAtual.segmentos.length === 0) {
-    lista.innerHTML = "<p class='texto-vazio'>Nenhum segmento de fala foi identificado neste áudio.</p>";
+    const vazio = document.createElement("p");
+    vazio.className = "texto-vazio";
+    vazio.textContent = "Nenhum segmento de fala foi identificado neste áudio.";
+    lista.appendChild(vazio);
+    const botaoAdicionar = document.createElement("button");
+    botaoAdicionar.className = "btn btn-secundario btn-pequeno";
+    botaoAdicionar.textContent = "+ Adicionar trecho manualmente";
+    botaoAdicionar.addEventListener("click", () => inserirSegmento(null));
+    lista.appendChild(botaoAdicionar);
     return;
   }
 
@@ -457,17 +465,31 @@ function renderizarSegmentos() {
     return html;
   };
 
+  const criarDivisorInsercao = (aposOrdem) => {
+    const divisor = document.createElement("div");
+    divisor.className = "insercao-segmento";
+    divisor.innerHTML = `<button type="button" title="Inserir um trecho que a transcrição não capturou">+ Adicionar trecho aqui</button>`;
+    divisor.querySelector("button").addEventListener("click", () => inserirSegmento(aposOrdem));
+    return divisor;
+  };
+
+  // Um "+" antes do primeiro trecho, para o caso de a transcrição ter
+  // pulado uma fala logo no início da reunião.
+  lista.appendChild(criarDivisorInsercao(null));
+
   reuniaoAtual.segmentos.forEach((seg) => {
     const div = document.createElement("div");
     div.className = "segmento" + (seg.baixa_confianca ? " baixa-confianca" : "");
     div.dataset.id = seg.id;
+    const semTexto = !seg.texto;
     div.innerHTML = `
       <div class="segmento-cabecalho">
         <span class="segmento-tempo">${formatarTempo(seg.inicio_segundos)} – ${formatarTempo(seg.fim_segundos)}</span>
         <select class="segmento-participante">${opcoesParticipante(seg.participante_id)}</select>
         ${seg.baixa_confianca ? '<span class="segmento-flag">⚠ baixa confiança — revisar</span>' : ""}
+        ${semTexto ? '<span class="segmento-flag segmento-flag-info">✎ trecho adicionado manualmente</span>' : ""}
       </div>
-      <textarea>${escaparHtml(seg.texto)}</textarea>
+      <textarea placeholder="Digite aqui o trecho que a transcrição não capturou...">${escaparHtml(seg.texto)}</textarea>
       <div class="segmento-rodape">
         <span class="segmento-status" aria-live="polite"></span>
         <div class="segmento-acoes">
@@ -479,6 +501,9 @@ function renderizarSegmentos() {
       </div>
     `;
     lista.appendChild(div);
+    // "+" logo depois de cada trecho, para inserir algo que veio a seguir
+    // (ou entre este e o próximo) e não foi capturado.
+    lista.appendChild(criarDivisorInsercao(seg.ordem));
   });
 
   lista.querySelectorAll(".segmento").forEach((div) => {
@@ -537,6 +562,39 @@ async function atribuirParticipanteSegmento(id, participanteId) {
   } catch (erro) {
     alert(`Não foi possível atribuir o participante: ${erro.message}`);
     renderizarSegmentos();
+  }
+}
+
+async function inserirSegmento(aposOrdem) {
+  const indiceAnterior = aposOrdem === null
+    ? -1
+    : reuniaoAtual.segmentos.findIndex((s) => s.ordem === aposOrdem);
+  const anterior = indiceAnterior >= 0 ? reuniaoAtual.segmentos[indiceAnterior] : null;
+  const seguinte = reuniaoAtual.segmentos[indiceAnterior + 1] || null;
+
+  const inicio = anterior ? anterior.fim_segundos : Math.max(0, (seguinte ? seguinte.inicio_segundos - 1 : 0));
+  const fim = seguinte && seguinte.inicio_segundos > inicio ? seguinte.inicio_segundos : inicio;
+
+  try {
+    const novo = await apiFetch(`${API}/${reuniaoAtual.id}/segmentos`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ inicio_segundos: inicio, fim_segundos: fim, texto: "", apos_ordem: aposOrdem }),
+    });
+
+    // A inserção pode ter deslocado a ordem dos trechos seguintes -
+    // buscar a reunião de novo garante que a lista fique na ordem certa.
+    const atualizada = await apiFetch(`${API}/${reuniaoAtual.id}`);
+    reuniaoAtual.segmentos = atualizada.segmentos;
+    renderizarSegmentos();
+
+    const textareaNovo = document.querySelector(`.segmento[data-id="${novo.id}"] textarea`);
+    if (textareaNovo) {
+      textareaNovo.focus();
+      textareaNovo.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  } catch (erro) {
+    alert(`Não foi possível inserir o trecho: ${erro.message}`);
   }
 }
 

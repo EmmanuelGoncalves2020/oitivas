@@ -414,6 +414,36 @@ h1, h2, h3 { font-weight: 650; letter-spacing: -0.01em; color: var(--azul-900); 
   border-radius: var(--raio-sm);
 }
 .segmento-flag { color: var(--ambar-700); font-weight: 650; font-size: 0.78rem; }
+.segmento-flag-info { color: var(--azul-700); }
+
+.insercao-segmento {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: -0.45rem 0;
+  min-height: 1.1rem;
+}
+.insercao-segmento button {
+  background: var(--branco);
+  border: 1px dashed var(--cinza-300);
+  border-radius: var(--raio-pill);
+  padding: 0.18rem 0.75rem;
+  font-size: 0.72rem;
+  font-weight: 650;
+  color: var(--texto-secundario);
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity 0.15s ease, background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  font-family: inherit;
+}
+.insercao-segmento button:hover,
+.insercao-segmento button:focus-visible {
+  opacity: 1;
+  background: var(--azul-50);
+  border-color: var(--azul-500);
+  border-style: solid;
+  color: var(--azul-700);
+}
 
 .segmento-participante {
   border: 1px solid var(--cinza-300);
