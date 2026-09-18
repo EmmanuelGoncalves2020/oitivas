@@ -272,13 +272,20 @@ document.getElementById("btn-voltar-home").addEventListener("click", () => {
 // ---------------------------------------------------------------------------
 
 let reuniaoAtual = null;
+let participantesAtuais = [];
 
 async function abrirRevisao(id) {
   mostrarView("revisao");
   const lista = document.getElementById("lista-segmentos");
   lista.innerHTML = "<p class='texto-vazio'>Carregando transcrição...</p>";
 
-  reuniaoAtual = await apiFetch(`${API}/${id}`);
+  const [reuniao, participantes] = await Promise.all([
+    apiFetch(`${API}/${id}`),
+    apiFetch(`${API}/${id}/participantes`),
+  ]);
+  reuniaoAtual = reuniao;
+  participantesAtuais = participantes;
+
   document.getElementById("revisao-titulo").textContent = reuniaoAtual.titulo;
   document.getElementById("revisao-meta").textContent =
     `${formatarData(reuniaoAtual.criado_em)} · Duração: ${formatarTempo(reuniaoAtual.duracao_segundos)} ` +
@@ -292,54 +299,94 @@ async function abrirRevisao(id) {
 function atualizarAvisoDiarizacao() {
   const aviso = document.getElementById("aviso-diarizacao");
   if (reuniaoAtual.diarizacao_disponivel) {
-    aviso.textContent = "Participantes identificados automaticamente (diarização). Revise e renomeie conforme necessário — a separação por voz é uma estimativa e pode conter imprecisões.";
+    aviso.textContent = "Participantes identificados automaticamente (diarização) — a separação por voz é uma estimativa e pode conter imprecisões. Revise abaixo.";
     aviso.classList.remove("hidden");
     aviso.classList.add("sucesso");
   } else if (reuniaoAtual.diarizacao_solicitada) {
-    aviso.textContent = "A identificação de participantes foi solicitada, mas não pôde ser concluída nesta reunião. A transcrição segue disponível sem rótulo de participante.";
+    aviso.textContent = "A identificação automática de participantes foi solicitada, mas não pôde ser concluída nesta reunião. Use o quadro abaixo para atribuir os participantes manualmente.";
     aviso.classList.remove("hidden", "sucesso");
   } else {
-    aviso.textContent = "A identificação individual de participantes (diarização) não foi utilizada nesta transcrição — todos os trechos aparecem sem rótulo de participante.";
-    aviso.classList.remove("hidden", "sucesso");
+    aviso.classList.add("hidden");
   }
 }
+
+// --- Quadro de participantes -------------------------------------------
+// Nomear um participante aqui propaga automaticamente para todos os
+// segmentos vinculados a ele (por ID, nunca por comparação de texto).
 
 function renderizarParticipantes() {
-  const painel = document.getElementById("painel-participantes");
   const lista = document.getElementById("lista-participantes");
-  const nomes = [...new Set(reuniaoAtual.segmentos.map((s) => s.falante).filter(Boolean))];
+  lista.innerHTML = "";
 
-  if (nomes.length === 0) {
-    painel.classList.add("hidden");
-    lista.innerHTML = "";
-    return;
+  if (participantesAtuais.length === 0) {
+    lista.innerHTML = "<p class='texto-vazio texto-vazio-compacto'>Nenhum participante cadastrado. Adicione abaixo para poder atribuí-los aos trechos da transcrição.</p>";
   }
 
-  painel.classList.remove("hidden");
-  lista.innerHTML = "";
-  nomes.forEach((nome) => {
-    const chip = document.createElement("div");
-    chip.className = "chip-participante";
-    chip.innerHTML = `<input type="text" value="${escaparHtml(nome)}" /><button>Renomear</button>`;
-    chip.querySelector("button").addEventListener("click", async () => {
-      const novoNome = chip.querySelector("input").value.trim();
-      if (!novoNome || novoNome === nome) return;
-      try {
-        await apiFetch(`${API}/${reuniaoAtual.id}/participantes/renomear`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ nome_atual: nome, nome_novo: novoNome }),
-        });
-        reuniaoAtual.segmentos.forEach((s) => { if (s.falante === nome) s.falante = novoNome; });
-        renderizarParticipantes();
-        renderizarSegmentos();
-      } catch (erro) {
-        alert(`Não foi possível renomear o participante: ${erro.message}`);
-      }
-    });
-    lista.appendChild(chip);
+  participantesAtuais.forEach((p) => {
+    const item = document.createElement("div");
+    item.className = "item-participante";
+    item.innerHTML = `
+      <input type="text" class="input-nome-participante" value="${escaparHtml(p.nome)}" />
+      <button class="btn-icone" data-acao="salvar" title="Salvar nome">Salvar</button>
+      <button class="btn-icone btn-icone-perigo" data-acao="excluir" title="Excluir participante">Excluir</button>
+    `;
+    const input = item.querySelector(".input-nome-participante");
+    item.querySelector('[data-acao="salvar"]').addEventListener("click", () => renomearParticipante(p.id, input.value));
+    input.addEventListener("keydown", (e) => { if (e.key === "Enter") renomearParticipante(p.id, input.value); });
+    item.querySelector('[data-acao="excluir"]').addEventListener("click", () => excluirParticipante(p.id));
+    lista.appendChild(item);
   });
 }
+
+document.getElementById("btn-adicionar-participante").addEventListener("click", async () => {
+  try {
+    const novo = await apiFetch(`${API}/${reuniaoAtual.id}/participantes`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    participantesAtuais.push(novo);
+    renderizarParticipantes();
+    renderizarSegmentos();
+  } catch (erro) {
+    alert(`Não foi possível adicionar o participante: ${erro.message}`);
+  }
+});
+
+async function renomearParticipante(participanteId, novoNome) {
+  const nome = novoNome.trim();
+  if (!nome) return;
+  try {
+    const atualizado = await apiFetch(`${API}/${reuniaoAtual.id}/participantes/${participanteId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ nome }),
+    });
+    const p = participantesAtuais.find((x) => x.id === participanteId);
+    if (p) p.nome = atualizado.nome;
+    reuniaoAtual.segmentos.forEach((s) => { if (s.participante_id === participanteId) s.falante = atualizado.nome; });
+    renderizarSegmentos();
+  } catch (erro) {
+    alert(`Não foi possível renomear o participante: ${erro.message}`);
+  }
+}
+
+async function excluirParticipante(participanteId) {
+  if (!confirm("Excluir este participante? Os trechos vinculados a ele ficarão sem participante atribuído.")) return;
+  try {
+    await apiFetch(`${API}/${reuniaoAtual.id}/participantes/${participanteId}`, { method: "DELETE" });
+    participantesAtuais = participantesAtuais.filter((p) => p.id !== participanteId);
+    reuniaoAtual.segmentos.forEach((s) => {
+      if (s.participante_id === participanteId) { s.participante_id = null; s.falante = null; }
+    });
+    renderizarParticipantes();
+    renderizarSegmentos();
+  } catch (erro) {
+    alert(`Não foi possível excluir o participante: ${erro.message}`);
+  }
+}
+
+// --- Segmentos -----------------------------------------------------------
 
 function renderizarSegmentos() {
   const lista = document.getElementById("lista-segmentos");
@@ -350,22 +397,30 @@ function renderizarSegmentos() {
     return;
   }
 
+  const opcoesParticipante = (selecionadoId) => {
+    let html = `<option value="">— Sem participante —</option>`;
+    for (const p of participantesAtuais) {
+      html += `<option value="${p.id}" ${p.id === selecionadoId ? "selected" : ""}>${escaparHtml(p.nome)}</option>`;
+    }
+    return html;
+  };
+
   reuniaoAtual.segmentos.forEach((seg) => {
     const div = document.createElement("div");
     div.className = "segmento" + (seg.baixa_confianca ? " baixa-confianca" : "");
     div.dataset.id = seg.id;
     div.innerHTML = `
       <div class="segmento-cabecalho">
-        <span class="segmento-tempo">${formatarTempo(seg.inicio_segundos)} - ${formatarTempo(seg.fim_segundos)}</span>
-        ${seg.baixa_confianca ? '<span class="segmento-flag">⚠ baixa confiança - revisar</span>' : ""}
+        <span class="segmento-tempo">${formatarTempo(seg.inicio_segundos)} – ${formatarTempo(seg.fim_segundos)}</span>
+        <select class="segmento-participante">${opcoesParticipante(seg.participante_id)}</select>
+        ${seg.baixa_confianca ? '<span class="segmento-flag">⚠ baixa confiança — revisar</span>' : ""}
       </div>
-      <input class="segmento-falante" type="text" placeholder="Participante (opcional)" value="${escaparHtml(seg.falante || "")}" />
       <textarea>${escaparHtml(seg.texto)}</textarea>
       <div class="segmento-acoes">
-        <button data-acao="salvar">Salvar</button>
-        <button data-acao="dividir">Dividir aqui (cursor)</button>
+        <button data-acao="salvar">Salvar texto</button>
+        <button data-acao="dividir">Dividir no cursor</button>
         <button data-acao="mesclar-proximo">Unir com próximo</button>
-        <button data-acao="excluir">Excluir</button>
+        <button data-acao="excluir" class="acao-perigo">Excluir</button>
       </div>
     `;
     lista.appendChild(div);
@@ -374,28 +429,43 @@ function renderizarSegmentos() {
   lista.querySelectorAll(".segmento").forEach((div) => {
     const id = div.dataset.id;
     const textarea = div.querySelector("textarea");
-    const inputFalante = div.querySelector(".segmento-falante");
+    const selectParticipante = div.querySelector(".segmento-participante");
 
-    div.querySelector('[data-acao="salvar"]').addEventListener("click", () => salvarSegmento(id, textarea.value, inputFalante.value));
+    div.querySelector('[data-acao="salvar"]').addEventListener("click", () => salvarSegmento(id, textarea.value));
     div.querySelector('[data-acao="excluir"]').addEventListener("click", () => excluirSegmento(id));
     div.querySelector('[data-acao="mesclar-proximo"]').addEventListener("click", () => mesclarComProximo(id));
     div.querySelector('[data-acao="dividir"]').addEventListener("click", () => {
       const pos = textarea.selectionStart;
       dividirSegmento(id, pos);
     });
+    selectParticipante.addEventListener("change", () => atribuirParticipanteSegmento(id, selectParticipante.value || null));
   });
 }
 
-async function salvarSegmento(id, texto, falante) {
+async function atribuirParticipanteSegmento(id, participanteId) {
+  try {
+    const atualizado = await apiFetch(`${API}/${reuniaoAtual.id}/segmentos/${id}/participante`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ participante_id: participanteId }),
+    });
+    const seg = reuniaoAtual.segmentos.find((s) => s.id === id);
+    if (seg) { seg.participante_id = atualizado.participante_id; seg.falante = atualizado.falante; }
+  } catch (erro) {
+    alert(`Não foi possível atribuir o participante: ${erro.message}`);
+    renderizarSegmentos();
+  }
+}
+
+async function salvarSegmento(id, texto) {
   try {
     await apiFetch(`${API}/${reuniaoAtual.id}/segmentos/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ texto, falante }),
+      body: JSON.stringify({ texto }),
     });
     const seg = reuniaoAtual.segmentos.find((s) => s.id === id);
-    if (seg) { seg.texto = texto; seg.falante = falante || null; }
-    renderizarParticipantes();
+    if (seg) seg.texto = texto;
   } catch (erro) {
     alert(`Não foi possível salvar o trecho: ${erro.message}`);
   }
@@ -406,7 +476,6 @@ async function excluirSegmento(id) {
   try {
     await apiFetch(`${API}/${reuniaoAtual.id}/segmentos/${id}`, { method: "DELETE" });
     reuniaoAtual.segmentos = reuniaoAtual.segmentos.filter((s) => s.id !== id);
-    renderizarParticipantes();
     renderizarSegmentos();
   } catch (erro) {
     alert(`Não foi possível excluir o trecho: ${erro.message}`);

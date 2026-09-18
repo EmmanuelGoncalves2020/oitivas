@@ -12,7 +12,7 @@ from fastapi.staticfiles import StaticFiles
 
 from . import schemas
 from .config import settings
-from .routers import ata, dicionario, meetings
+from .routers import ata, dicionario, meetings, participantes
 
 logging.basicConfig(level=logging.INFO)
 
@@ -25,6 +25,7 @@ app = FastAPI(
 app.include_router(meetings.router)
 app.include_router(dicionario.router)
 app.include_router(ata.router)
+app.include_router(participantes.router)
 
 
 @app.get("/api/saude")

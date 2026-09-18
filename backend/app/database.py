@@ -78,6 +78,21 @@ class Reuniao(Base):
     )
 
 
+class Participante(Base):
+    """Quadro de participantes de uma reunião. Nomear um participante aqui
+    (ex.: "Participante 1" -> "Emmanuel") propaga automaticamente para todos
+    os segmentos vinculados a ele - não depende de comparação de texto, então
+    nunca "perde" a associação por causa de um pequeno erro de digitação."""
+
+    __tablename__ = "participantes"
+
+    id = Column(String, primary_key=True, default=_uuid)
+    reuniao_id = Column(String, ForeignKey("reunioes.id"), nullable=False)
+    ordem = Column(Integer, nullable=False)
+    nome = Column(String, nullable=False)
+    criado_em = Column(DateTime, default=datetime.utcnow)
+
+
 class Segmento(Base):
     __tablename__ = "segmentos"
 
@@ -88,7 +103,8 @@ class Segmento(Base):
     inicio_segundos = Column(Float, nullable=False)
     fim_segundos = Column(Float, nullable=False)
 
-    falante = Column(String, nullable=True)  # nulo até diarização existir (Fase 2)
+    participante_id = Column(String, ForeignKey("participantes.id"), nullable=True)
+    falante = Column(String, nullable=True)  # nome denormalizado, mantido em sincronia com participante.nome
     texto = Column(Text, nullable=False)
 
     confianca_media = Column(Float, nullable=True)

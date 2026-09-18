@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from .. import jobs, schemas
 from ..config import settings
-from ..database import LogEvento, Reuniao, Segmento, StatusReuniao, get_db
+from ..database import LogEvento, Participante, Reuniao, Segmento, StatusReuniao, get_db
 from ..services import docx_export, txt_export
 
 router = APIRouter(prefix="/api/meetings", tags=["reunioes"])
@@ -143,8 +143,6 @@ def editar_segmento(reuniao_id: str, segmento_id: str, dados: schemas.SegmentoUp
 
     if dados.texto is not None:
         segmento.texto = dados.texto
-    if dados.falante is not None:
-        segmento.falante = dados.falante or None
     if dados.inicio_segundos is not None:
         segmento.inicio_segundos = dados.inicio_segundos
     if dados.fim_segundos is not None:
@@ -177,7 +175,6 @@ def criar_segmento(reuniao_id: str, dados: schemas.SegmentoCriar, db: Session = 
         ordem=ordem_insercao,
         inicio_segundos=dados.inicio_segundos,
         fim_segundos=dados.fim_segundos,
-        falante=dados.falante,
         texto=dados.texto,
         editado_manualmente=True,
     )
@@ -210,6 +207,7 @@ def dividir_segmento(reuniao_id: str, segmento_id: str, dados: schemas.SegmentoD
         ordem=segmento.ordem + 1,
         inicio_segundos=tempo_corte,
         fim_segundos=segmento.fim_segundos,
+        participante_id=segmento.participante_id,
         falante=segmento.falante,
         texto=texto[pos:].strip(),
         editado_manualmente=True,
@@ -247,18 +245,27 @@ def mesclar_segmentos(reuniao_id: str, dados: schemas.SegmentosMesclar, db: Sess
     return a
 
 
-@router.post("/{reuniao_id}/participantes/renomear", response_model=list[schemas.SegmentoOut])
-def renomear_participante(reuniao_id: str, dados: schemas.RenomearParticipante, db: Session = Depends(get_db)):
+@router.put("/{reuniao_id}/segmentos/{segmento_id}/participante", response_model=schemas.SegmentoOut)
+def atribuir_participante(reuniao_id: str, segmento_id: str, dados: schemas.SegmentoParticipante, db: Session = Depends(get_db)):
+    """Vincula (ou desvincula) um segmento a um participante do quadro da
+    reunião. O nome exibido (falante) é sempre copiado do quadro - editar o
+    nome do participante depois propaga automaticamente para aqui."""
     reuniao = _obter_reuniao_ou_404(reuniao_id, db)
-    afetados = []
-    for segmento in reuniao.segmentos:
-        if segmento.falante == dados.nome_atual:
-            segmento.falante = dados.nome_novo
-            afetados.append(segmento)
+    segmento = _obter_segmento_ou_404(reuniao, segmento_id)
+
+    if dados.participante_id is None:
+        segmento.participante_id = None
+        segmento.falante = None
+    else:
+        participante = db.get(Participante, dados.participante_id)
+        if participante is None or participante.reuniao_id != reuniao.id:
+            raise HTTPException(status_code=404, detail="Participante não encontrado.")
+        segmento.participante_id = participante.id
+        segmento.falante = participante.nome
+
     db.commit()
-    for s in afetados:
-        db.refresh(s)
-    return afetados
+    db.refresh(segmento)
+    return segmento
 
 
 # --- Exportação --------------------------------------------------------------

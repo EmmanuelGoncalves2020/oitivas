@@ -11,7 +11,7 @@ from datetime import datetime
 from pathlib import Path
 
 from .config import settings
-from .database import LogEvento, Reuniao, SessionLocal, Segmento, StatusReuniao, TermoDicionario
+from .database import LogEvento, Participante, Reuniao, SessionLocal, Segmento, StatusReuniao, TermoDicionario
 from .services import audio, diarization, transcription
 
 logger = logging.getLogger("transcritor_ctce.jobs")
@@ -101,8 +101,23 @@ def _processar(reuniao_id: str) -> None:
                     [(s.inicio_segundos, s.fim_segundos) for s in segmentos_criados],
                     trechos_falantes,
                 )
+                # Cada rótulo detectado vira uma entrada real no quadro de
+                # participantes da reunião, para que renomear (ex.: "Participante 1"
+                # -> "Emmanuel") propague automaticamente para todos os segmentos.
+                participante_por_rotulo: dict[str, Participante] = {}
+                proxima_ordem = 1
                 for segmento, rotulo in zip(segmentos_criados, rotulos):
-                    segmento.falante = rotulo
+                    if rotulo is None:
+                        continue
+                    participante = participante_por_rotulo.get(rotulo)
+                    if participante is None:
+                        participante = Participante(reuniao_id=reuniao.id, ordem=proxima_ordem, nome=rotulo)
+                        db.add(participante)
+                        db.flush()
+                        participante_por_rotulo[rotulo] = participante
+                        proxima_ordem += 1
+                    segmento.participante_id = participante.id
+                    segmento.falante = participante.nome
                 db.commit()
                 _atualizar(db, reuniao, diarizacao_disponivel=True)
                 _registrar_log(db, reuniao.id, "processamento", "Diarização concluída.", reuniao.usuario_responsavel)

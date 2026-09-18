@@ -76,9 +76,16 @@ FastAPI (backend/app)
   nomes, cargos) são usados como `initial_prompt` do faster-whisper, uma
   técnica padrão para influenciar a probabilidade de reconhecimento de
   determinado vocabulário — não insere texto que não foi falado.
-- **Renomeação de participantes**: `POST /api/meetings/{id}/participantes/renomear`
-  propaga o novo nome para todos os segmentos daquele participante na
-  reunião.
+- **Quadro de participantes**: tabela própria (`participantes`), independente
+  do texto de cada segmento. Cada segmento se vincula a um participante por
+  ID (`Segmento.participante_id`), nunca por comparação de string. Renomear
+  um participante (`PUT /api/meetings/{id}/participantes/{id}`) propaga
+  automaticamente para todos os segmentos vinculados a ele - nomear uma vez
+  já basta, sem precisar reescrever em cada trecho. O usuário também pode
+  pré-criar o quadro ("Participante 1", "Participante 2"...) antes de
+  processar qualquer segmento, e depois só atribuir cada trecho a um deles
+  por um menu suspenso. A diarização (quando habilitada) já cria essas
+  entradas automaticamente.
 
 ## 5. Fase 3: Ata/Relatório e Encaminhamentos
 
@@ -126,7 +133,11 @@ separadamente.
 - **Migrações de banco**: o MVP usa `Base.metadata.create_all` (cria
   tabelas ausentes, não altera colunas existentes). Adequado para uso
   local sem dados críticos acumulados; Alembic fica previsto para a Fase 4
-  (uso multiusuário com PostgreSQL).
+  (uso multiusuário com PostgreSQL). **Importante**: a introdução do quadro
+  de participantes (tabela `participantes` + coluna `Segmento.participante_id`)
+  é uma mudança de esquema. Quem já tinha um `backend/storage/db.sqlite3`
+  de versões anteriores precisa apagá-lo (perdendo as transcrições já
+  processadas) para que o banco seja recriado com o novo esquema.
 
 ## 7. Requisitos de hardware
 

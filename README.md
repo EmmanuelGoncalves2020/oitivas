@@ -17,8 +17,10 @@ Implementado nesta versão:
 - editor de revisão (editar, dividir, unir e excluir trechos);
 - **diarização opcional** (identificação de participantes) via
   pyannote.audio — desabilitada por padrão, requer configuração explícita
-  (ver `docs/INSTALACAO.md`); com renomeação de participantes propagada
-  para todos os trechos;
+  (ver `docs/INSTALACAO.md`);
+- **quadro de participantes**: nomeie cada participante uma única vez e o
+  nome se propaga automaticamente para todos os trechos vinculados a ele
+  (vínculo por ID, não por texto — não se perde mais ao editar);
 - **dicionário institucional de termos** (siglas, nomes, expressões) usado
   para orientar o reconhecimento de fala;
 - histórico de reuniões com busca por título e filtro por status;

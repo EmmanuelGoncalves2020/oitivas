@@ -10,6 +10,7 @@ class SegmentoOut(BaseModel):
     ordem: int
     inicio_segundos: float
     fim_segundos: float
+    participante_id: Optional[str] = None
     falante: Optional[str] = None
     texto: str
     baixa_confianca: bool
@@ -61,7 +62,6 @@ class StatusProcessamento(BaseModel):
 
 class SegmentoUpdate(BaseModel):
     texto: Optional[str] = None
-    falante: Optional[str] = None
     inicio_segundos: Optional[float] = None
     fim_segundos: Optional[float] = None
 
@@ -69,7 +69,6 @@ class SegmentoUpdate(BaseModel):
 class SegmentoCriar(BaseModel):
     inicio_segundos: float
     fim_segundos: float
-    falante: Optional[str] = None
     texto: str
     apos_ordem: Optional[int] = None
 
@@ -83,9 +82,25 @@ class SegmentosMesclar(BaseModel):
     segmento_id_b: str
 
 
-class RenomearParticipante(BaseModel):
-    nome_atual: str
-    nome_novo: str
+class SegmentoParticipante(BaseModel):
+    participante_id: Optional[str] = None
+
+
+class ParticipanteOut(BaseModel):
+    id: str
+    ordem: int
+    nome: str
+
+    class Config:
+        from_attributes = True
+
+
+class ParticipanteCriar(BaseModel):
+    nome: Optional[str] = None
+
+
+class ParticipanteAtualizar(BaseModel):
+    nome: str
 
 
 class TermoOut(BaseModel):
