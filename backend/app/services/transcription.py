@@ -40,8 +40,12 @@ def _carregar_modelo():
                 from faster_whisper import WhisperModel
             except ImportError as exc:
                 raise ModeloIndisponivelError(
-                    "A biblioteca 'faster-whisper' não está instalada. "
-                    "Execute 'pip install -r requirements.txt' no ambiente do backend."
+                    "Não foi possível importar a biblioteca 'faster-whisper' "
+                    f"(detalhe técnico: {exc}). Execute 'pip install -r requirements.txt' "
+                    "no ambiente do backend. Se o pacote já aparece instalado "
+                    "('pip show faster-whisper'), o problema costuma ser uma "
+                    "dependência interna faltando (ex.: 'requests') - reinstale "
+                    "com 'pip install -r requirements.txt --force-reinstall'."
                 ) from exc
             try:
                 _model_cache[chave] = WhisperModel(

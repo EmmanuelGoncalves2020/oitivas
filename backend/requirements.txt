@@ -4,4 +4,9 @@ python-multipart==0.0.17
 pydantic-settings==2.6.1
 SQLAlchemy==2.0.36
 faster-whisper==1.1.0
+# 'requests' é usado internamente por faster-whisper (faster_whisper/utils.py)
+# mas não é declarado como dependência própria do pacote - versões recentes
+# de huggingface-hub pararam de trazê-lo de carona (trocaram por httpx),
+# então precisa ser fixado aqui explicitamente para evitar ImportError.
+requests==2.32.3
 python-docx==1.1.2
