@@ -143,6 +143,11 @@ def editar_segmento(reuniao_id: str, segmento_id: str, dados: schemas.SegmentoUp
 
     if dados.texto is not None:
         segmento.texto = dados.texto
+        # Salvar o texto (mesmo sem alterá-lo, como confirmação de que o
+        # trecho foi revisado e está correto) remove a marcação de baixa
+        # confiança - ela existe para chamar atenção durante a revisão, não
+        # depois que um humano já revisou aquele trecho.
+        segmento.baixa_confianca = False
     if dados.inicio_segundos is not None:
         segmento.inicio_segundos = dados.inicio_segundos
     if dados.fim_segundos is not None:

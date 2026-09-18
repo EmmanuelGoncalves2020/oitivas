@@ -47,7 +47,10 @@ FastAPI (backend/app)
    - transcreve localmente com faster-whisper, gerando segmentos com
      timestamp;
    - marca trechos de baixa confiança (`avg_logprob` / `no_speech_prob`)
-     para revisão humana, sem tentar "adivinhar" o conteúdo;
+     para revisão humana, sem tentar "adivinhar" o conteúdo. A marcação é
+     um lembrete temporário: some assim que o segmento é salvo (seja
+     corrigindo o texto, seja apenas confirmando que já está correto) -
+     não permanece indefinidamente após a revisão humana;
    - aplica limpeza leve de forma (pontuação/espaços/capitalização e remoção
      de repetições óbvias de reconhecimento) — nunca altera o sentido.
 4. O frontend consulta `/status` a cada poucos segundos e atualiza a barra

@@ -487,11 +487,22 @@ function renderizarSegmentos() {
     const selectParticipante = div.querySelector(".segmento-participante");
     const status = div.querySelector(".segmento-status");
 
-    const salvarTextoNoServidor = () => apiFetch(`${API}/${reuniaoAtual.id}/segmentos/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ texto: textarea.value }),
-    });
+    const salvarTextoNoServidor = async () => {
+      const atualizado = await apiFetch(`${API}/${reuniaoAtual.id}/segmentos/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ texto: textarea.value }),
+      });
+      // Revisar (salvar) um trecho remove a marcação de baixa confiança -
+      // ela é um alerta para a revisão, não algo permanente no documento.
+      const seg = reuniaoAtual.segmentos.find((s) => s.id === id);
+      if (seg) seg.baixa_confianca = atualizado.baixa_confianca;
+      if (!atualizado.baixa_confianca) {
+        div.classList.remove("baixa-confianca");
+        const flag = div.querySelector(".segmento-flag");
+        if (flag) flag.remove();
+      }
+    };
 
     textarea.addEventListener("input", () => {
       // Atualiza o estado local imediatamente: mesmo que a tela seja
